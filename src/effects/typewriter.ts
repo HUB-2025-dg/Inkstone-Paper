@@ -1,5 +1,5 @@
 import { MarkdownView } from 'obsidian';
-import { SCOPE_ON, type ScopeHost } from '../scope';
+import { SCOPE_ON, prefersReducedMotion, type ScopeHost } from '../scope';
 
 /**
  * 打字机（PLAN §8.4）：命令触发，逐字显现当前阅读视图内容。
@@ -13,6 +13,10 @@ import { SCOPE_ON, type ScopeHost } from '../scope';
 const TW_HIDE_CLASS = 'inkstone-tw-hide';
 /** 不参与逐字显现的容器 */
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE']);
+/** HTML 命名空间：逐字 span 只能活在 HTML 里。SVG（mermaid 内联）与 MathML
+ *  （KaTeX 的 MathML 分支）是外来命名空间，HTML span 在其中不渲染——播放期间
+ *  跳过其文本节点，避免图内文字消失（复审第 1 轮 §6）。 */
+const XHTML_NS = 'http://www.w3.org/1999/xhtml';
 
 interface TypewriterRecord {
 	/** 该文本节点对应的逐字 span（文档序） */
@@ -35,9 +39,6 @@ interface TypewriterSession {
 
 let session: TypewriterSession | null = null;
 
-const prefersReducedMotion = (): boolean =>
-	window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
 /** 当前阅读视图的渲染根（仅阅读模式；编辑/Live Preview 不参与，ADR-0003）。 */
 function findReadingRoot(plugin: ScopeHost): HTMLElement | null {
 	const view = plugin.app.workspace.getActiveViewOfType(MarkdownView);
@@ -57,7 +58,13 @@ function wrapTextNodes(root: HTMLElement): TypewriterRecord[] {
 		const textNode = node as Text;
 		node = walker.nextNode();
 		const parent = textNode.parentElement;
-		if (!parent || SKIP_TAGS.has(parent.tagName) || parent.isContentEditable) continue;
+		if (
+			!parent ||
+			SKIP_TAGS.has(parent.tagName) ||
+			parent.namespaceURI !== XHTML_NS ||
+			parent.isContentEditable
+		)
+			continue;
 		const text = textNode.nodeValue ?? '';
 		if (text.trim().length === 0) continue;
 

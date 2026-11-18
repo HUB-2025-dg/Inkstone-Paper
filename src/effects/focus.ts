@@ -1,4 +1,10 @@
-import { RENDER_ROOT_SELECTOR, SCOPE_ON, type ScopeHost } from '../scope';
+import {
+	RENDER_ROOT_SELECTOR,
+	SCOPE_ON,
+	collectDocuments,
+	prefersReducedMotion,
+	type ScopeHost,
+} from '../scope';
 
 /**
  * 聚焦阅读（PLAN §8.3）：视口中带之外的段落退灰至 stone 档，带内保持墨色。
@@ -6,6 +12,7 @@ import { RENDER_ROOT_SELECTOR, SCOPE_ON, type ScopeHost } from '../scope';
  * 带边界时回调，带外挂 dim 类、带内摘除，滚动全程状态自洽。根级挂
  * `.inkstone-focus` 提供过渡底座（只在阅读域 `.inkstone` 内生效）。
  * 受效果总开关 + focusEnabled 独立开关门控；reduced-motion 时不挂观察器（保持静态排版）。
+ * Live Preview 域内渲染不参与（复审第 1 轮 §3）；卸载清理逐窗口执行（复审第 1 轮 §5）。
  */
 
 const FOCUS_SCOPE_CLASS = 'inkstone-focus';
@@ -17,9 +24,6 @@ const FOCUS_BAND_MARGIN = '-30% 0px -30% 0px';
 const observers = new Map<HTMLElement, IntersectionObserver>();
 /** 渲染根 → 已观察段落集合（post-processor 重复回调时幂等） */
 const observed = new Map<HTMLElement, Set<HTMLElement>>();
-
-const prefersReducedMotion = (): boolean =>
-	window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function onFocusEntries(entries: IntersectionObserverEntry[]): void {
 	for (const entry of entries) {
@@ -42,8 +46,11 @@ function pruneDetachedRoots(): void {
 
 export function registerFocusEffect(plugin: ScopeHost): void {
 	plugin.registerMarkdownPostProcessor((el) => {
-		const rootEl = el.closest(RENDER_ROOT_SELECTOR) ?? el;
-		if (!rootEl.instanceOf(HTMLElement)) return;
+		// Live Preview 域内渲染不参与（ADR-0003：LP 无动效；复审第 1 轮 §3）
+		if (el.closest('.cm-editor')) return;
+		// 只认真实阅读渲染根：不回退到 el 本身（LP widget 等无根宿主不参与）
+		const rootEl = el.closest(RENDER_ROOT_SELECTOR);
+		if (!rootEl?.instanceOf(HTMLElement)) return;
 		if (!rootEl.classList.contains(SCOPE_ON)) return;
 		const { effectsEnabled, focusEnabled } = plugin.inkstoneSettings;
 		if (!effectsEnabled || !focusEnabled) return;
@@ -71,13 +78,16 @@ export function registerFocusEffect(plugin: ScopeHost): void {
 	plugin.registerEvent(plugin.app.workspace.on('layout-change', pruneDetachedRoots));
 }
 
-/** 插件卸载：断开全部观察器，摘除根级标记与 dim 类。 */
-export function unloadFocusEffect(): void {
+/** 插件卸载：断开全部观察器，逐窗口摘除根级标记与 dim 类。 */
+export function unloadFocusEffect(plugin: ScopeHost): void {
 	for (const observer of observers.values()) observer.disconnect();
 	observers.clear();
 	observed.clear();
-	const nodes = document.querySelectorAll(`.${FOCUS_SCOPE_CLASS}, .${FOCUS_DIM_CLASS}`);
-	for (const node of Array.from(nodes)) {
-		node.classList.remove(FOCUS_SCOPE_CLASS, FOCUS_DIM_CLASS);
+	// 弹窗窗口有独立 document（复审第 1 轮 §5）：逐窗口清理
+	for (const doc of collectDocuments(plugin)) {
+		const nodes = doc.querySelectorAll(`.${FOCUS_SCOPE_CLASS}, .${FOCUS_DIM_CLASS}`);
+		for (const node of Array.from(nodes)) {
+			node.classList.remove(FOCUS_SCOPE_CLASS, FOCUS_DIM_CLASS);
+		}
 	}
 }

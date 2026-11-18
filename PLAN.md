@@ -135,7 +135,9 @@ D:\Obsidian-Kami\
 - [ ] 明暗双模式令牌正确
 - [ ] 禁用插件后笔记零残留恢复原状
 - [ ] 长笔记（300+ 段）滚动不卡；控制台无报错（默认只允许 error 级）
-- [x] README 双语、manifest 完整（author 待用户替换 "13757"）
+- [x] README 双语、manifest 完整（author 已由占位 "13757" 改为 git 署名 "HUB"，发布前用户可自行改定）
+- [ ] PDF 导出复核：导出走 print 媒体查询，渐显/打字机隐藏态强制呈现，无半透明空白块（复审第 1 轮 §4）
+- [ ] 发布前向审核确认 manifest name 用非 ASCII 品牌名 "Inkstone 纸研"（ADR-0004；社区 10555 个插件 name 均为 ASCII，复审第 1 轮 §12）
 
 ## 12. 文档协议
 

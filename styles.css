@@ -11,7 +11,8 @@
    ========================================================================== */
 
 /* --------------------------------------------------- ⓪ 打包字体（OFL） -- */
-/* 装配契约：assets/fonts/ 四个文件拷至插件目录 fonts/（与 styles.css 同级）。
+/* 装配契约：assets/fonts/ 四个文件进入插件目录 fonts/（与 styles.css 同级；
+   npm run build 末尾自动拷出，手动装配时按此结构复制）。
    src 用相对 url，随本样式表基址解析（桌面 app://，移动端随样式表协议），
    禁用插件时 Obsidian 卸载插件样式表即随之移除，零残留；文件缺失时静默
    回退 ① 中的本机字体栈。族名以字体文件 name 表为准。
@@ -59,15 +60,17 @@ body {
 	--ik-breaking-bg: #f0e0d8;
 	--ik-breaking-fg: #8b4513;
 
-	/* 字体栈：单一衬线承载全页（--sans 恒等衬线）；mono 带 CJK 回退。
-	   打包 OFL 字体（⓪ @font-face，assets/fonts 装配为插件目录 fonts/）：
+	/* 字体栈：单一衬线承载全页；mono 带 CJK 回退。
+	   打包 OFL 字体（⓪ @font-face，assets/fonts 经构建拷为插件目录 fonts/）：
 	   'LXGW WenKai Screen'（霞鹜文楷屏幕版）为标题+正文首选，缺失或加载中
 	   （font-display: swap）时顺次回退本机衬线；'JetBrains Mono' 为代码首选。
-	   生效字体一律取 --ik-font（默认恒等衬线；字体族覆盖设置经 body 类改写，见 ⑦） */
+	   生效字体一律取 --ik-font（默认恒等衬线；--ik-sans 是无衬线覆盖栈，供
+	   字体族覆盖设置经 body 类引用，见 ⑦——复审第 1 轮 §8：两条 sans 路径归一） */
 	--ik-serif: 'LXGW WenKai Screen', 'TsangerJinKai02', 'Source Han Serif SC', 'Source Han Serif CN',
 		'Noto Serif CJK SC', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', Georgia, serif;
 	--ik-font: var(--ik-serif);
-	--ik-sans: var(--ik-serif);
+	--ik-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+		'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
 	--ik-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', Consolas, Monaco,
 		'TsangerJinKai02', 'Source Han Serif SC', monospace;
 
@@ -686,6 +689,22 @@ body.inkstone-global .markdown-source-view.mod-cm6 .cm-highlight {
 	}
 }
 
+/* ---------------------------------- ⑥b 打印 / PDF 导出（竞态守卫） ----- */
+/* Obsidian PDF 导出走阅读渲染管线但即时打印：隐藏窗口中 IntersectionObserver
+   回调可能不触发，渐显块停留在 opacity:0（reveal.ts 的 revealed 类未挂上），
+   导出半透明或空白（复审第 1 轮 §4）。打印媒体查询强制呈现终态，不依赖 JS
+   回调时序；打字机 hide 类同理（播放中导出的兜底）。 */
+@media print {
+	.inkstone .inkstone-reveal {
+		opacity: 1 !important;
+		transform: none !important;
+		transition: none !important;
+	}
+	.inkstone .inkstone-tw-hide {
+		opacity: 1 !important;
+	}
+}
+
 /* --------------------------------- ⑦ 设置驱动的覆盖（scope.ts → body） -- */
 /* 连续值（字号缩放、栏宽）经 body 内联 CSS 自定义属性传入（审核规范允许
    自定义属性作为代码向 CSS 类传值的通道）；离散值（字体族覆盖、呼吸开关）
@@ -694,8 +713,7 @@ body.inkstone-global .markdown-source-view.mod-cm6 .cm-highlight {
 /* 字体族覆盖（settings.fontOverride）：改写生效字体令牌，
    排版层与 Live Preview 共享层全部经 --ik-font 取值 */
 body.inkstone-font-sans {
-	--ik-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-		'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+	--ik-font: var(--ik-sans);
 }
 body.inkstone-font-obsidian {
 	--ik-font: var(--font-text);

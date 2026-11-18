@@ -1,5 +1,7 @@
 node_modules/
 main.js
+# 构建产物：esbuild.config.mjs 从 assets/fonts 自动拷出（README 安装成员）
+/fonts/
 *.log
 .mimosa/
 .zcode/

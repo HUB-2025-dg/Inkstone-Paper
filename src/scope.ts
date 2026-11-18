@@ -10,7 +10,8 @@ import { applyMapping } from './mapping';
  * 作用域类挂在渲染根容器上：`inkstone` / `inkstone-off` / `inkstone-paper`，
  * 动效与排版样式只在 `.inkstone` 作用域内生效。
  * body 级：全局开关镜像 `inkstone-global`（Live Preview 共享层前提）、
- * 排版覆盖类与 CSS 自定义属性（字号缩放、栏宽），由 applyTypographyOverrides 维护。
+ * 排版覆盖类与 CSS 自定义属性（字号缩放、栏宽），由 applyTypographyOverrides 维护；
+ * 主窗口与全部弹窗逐窗口执行（弹窗有独立 body/document，复审第 1 轮 §5）。
  */
 
 export const SCOPE_ON = 'inkstone';
@@ -46,6 +47,23 @@ export function isDarkTheme(): boolean {
 	return document.body.classList.contains('theme-dark');
 }
 
+/** 系统减少动态偏好（PLAN §8：全部动效尊重；动效模块共用本函数）。 */
+export function prefersReducedMotion(): boolean {
+	return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/** 收集全部已打开窗口的 document（主窗口 + 弹窗）。
+ *  弹窗有独立 body/document（复审第 1 轮 §5）：body 级镜像与卸载清理必须
+ *  逐窗口执行。窗口→文档无公开清单，经叶子视图反查归属文档。 */
+export function collectDocuments(plugin: ScopeHost): Document[] {
+	const docs = new Set<Document>([document]);
+	plugin.app.workspace.iterateAllLeaves((leaf) => {
+		const doc = leaf.view.containerEl?.ownerDocument;
+		if (doc) docs.add(doc);
+	});
+	return Array.from(docs);
+}
+
 /**
  * 按全局开关、暗色门控 + frontmatter 覆盖解析应挂的作用域类。
  * 读取路径：ctx.frontmatter 的 `inkstone` 布尔（含 'true'/'false' 字符串归一化）
@@ -79,10 +97,13 @@ function applyScopeClasses(rootEl: Element, frontmatter: unknown, settings: Inks
 	rootEl.classList.toggle(SCOPE_PAPER, classes.includes(SCOPE_PAPER));
 }
 
-/** 全局开关（含暗色门控）镜像到 body：控制 Live Preview 共享层与卸载清理。 */
-export function applyGlobalScope(settings: InkstoneSettings): void {
+/** 全局开关（含暗色门控）镜像到各窗口 body：控制 Live Preview 共享层与卸载清理。 */
+export function applyGlobalScope(plugin: ScopeHost): void {
+	const settings = plugin.inkstoneSettings;
 	const active = settings.enabled && (!isDarkTheme() || settings.darkModeEnabled);
-	document.body.classList.toggle(SCOPE_GLOBAL, active);
+	for (const doc of collectDocuments(plugin)) {
+		doc.body.classList.toggle(SCOPE_GLOBAL, active);
+	}
 }
 
 /**
@@ -93,22 +114,46 @@ export function applyGlobalScope(settings: InkstoneSettings): void {
  * 排版层与 Live Preview 共享层一律经 `--ik-font` / `--ik-scale-*` /
  * `--ik-measure` 取值（styles.css ①）。
  */
-export function applyTypographyOverrides(settings: InkstoneSettings): void {
-	const body = document.body;
-	body.classList.toggle(FONT_SANS_CLASS, settings.fontOverride === 'sans');
-	body.classList.toggle(FONT_OBSIDIAN_CLASS, settings.fontOverride === 'obsidian');
-	body.classList.toggle(BREATH_OFF_CLASS, !(settings.effectsEnabled && settings.breathEnabled));
-	body.style.setProperty('--ik-scale', String(settings.fontScale / 100));
-	body.style.setProperty('--ik-measure', `${Math.round(settings.lineWidth)}px`);
+export function applyTypographyOverrides(plugin: ScopeHost): void {
+	const { fontOverride, effectsEnabled, breathEnabled, fontScale, lineWidth } =
+		plugin.inkstoneSettings;
+	for (const doc of collectDocuments(plugin)) {
+		const body = doc.body;
+		body.classList.toggle(FONT_SANS_CLASS, fontOverride === 'sans');
+		body.classList.toggle(FONT_OBSIDIAN_CLASS, fontOverride === 'obsidian');
+		body.classList.toggle(BREATH_OFF_CLASS, !(effectsEnabled && breathEnabled));
+		body.style.setProperty('--ik-scale', String(fontScale / 100));
+		body.style.setProperty('--ik-measure', `${Math.round(lineWidth)}px`);
+	}
 }
 
 /**
  * 注册 post-processor：读 ctx.frontmatter → 挂/摘作用域类；
  * 仅在生效域内执行排版映射。同步回调，不引入异步渲染路径。
+ * 守卫（复审第 1 轮 §2/§3）：
+ * - Live Preview：编辑器域内渲染（含 cm widget 与编辑器内嵌入块）一律不挂
+ *   作用域类——排版令牌经 body 级镜像已生效，动效不进入 LP（PLAN 决策 8 /
+ *   ADR-0003）；
+ * - 嵌入内容归属：el 若位于外层笔记的嵌入块（transclusion）内，本次 ctx
+ *   属于被嵌入文件，不得改写外层渲染根的作用域（PLAN §2 决策 3「单篇覆盖」
+ *   只作用于自身文件）；被嵌入文件自带渲染根时则正常挂类（根与 frontmatter
+ *   同源）；
+ * - 无阅读渲染根的宿主（异常容器）不挂类：宁可漏挂，不可错挂到外层容器
+ *   （原 `?? el` 回退会把类挂到 widget 上，已移除）。
  */
 export function registerScopePostProcessor(plugin: ScopeHost): void {
 	plugin.registerMarkdownPostProcessor((el, ctx) => {
-		const rootEl = el.closest(RENDER_ROOT_SELECTOR) ?? el;
+		// Live Preview / 编辑器域内渲染的一切（含嵌入 widget）不参与作用域
+		if (el.closest('.cm-editor')) return;
+		const rootEl = el.closest(RENDER_ROOT_SELECTOR);
+		if (!rootEl) return;
+		const embedEl = el.closest('.internal-embed');
+		if (embedEl !== null && rootEl.contains(embedEl)) {
+			// el 在外层笔记的嵌入块内：ctx 的 frontmatter 归属被嵌入文件，跳过
+			// 作用域改写；排版映射跟随外层根继续执行（嵌入内容随外层页样式渲染）
+			if (rootEl.classList.contains(SCOPE_ON)) applyMapping(el);
+			return;
+		}
 		applyScopeClasses(rootEl, ctx.frontmatter, plugin.inkstoneSettings);
 		if (rootEl.classList.contains(SCOPE_ON)) {
 			applyMapping(el);
@@ -116,23 +161,27 @@ export function registerScopePostProcessor(plugin: ScopeHost): void {
 	});
 }
 
-/** 摘除全部作用域类（插件卸载 / 关闭时恢复 Obsidian 原状，零残留）。 */
-export function clearScopeClasses(): void {
+/** 摘除全部作用域类（插件卸载 / 关闭时恢复 Obsidian 原状，零残留；逐窗口）。 */
+export function clearScopeClasses(plugin: ScopeHost): void {
 	const selector = [
 		`.${SCOPE_ON}`,
 		`.${SCOPE_OFF}`,
 		`.${SCOPE_PAPER}`,
 		`.${SCOPE_GLOBAL}`,
 	].join(', ');
-	for (const node of Array.from(document.querySelectorAll(selector))) {
-		node.classList.remove(SCOPE_ON, SCOPE_OFF, SCOPE_PAPER, SCOPE_GLOBAL);
+	for (const doc of collectDocuments(plugin)) {
+		for (const node of Array.from(doc.querySelectorAll(selector))) {
+			node.classList.remove(SCOPE_ON, SCOPE_OFF, SCOPE_PAPER, SCOPE_GLOBAL);
+		}
 	}
 }
 
-/** 摘除 body 级排版覆盖类与自定义属性（卸载清理，零残留）。 */
-export function clearBodyOverrides(): void {
-	const body = document.body;
-	body.classList.remove(FONT_SANS_CLASS, FONT_OBSIDIAN_CLASS, BREATH_OFF_CLASS);
-	body.style.removeProperty('--ik-scale');
-	body.style.removeProperty('--ik-measure');
+/** 摘除 body 级排版覆盖类与自定义属性（卸载清理，零残留；逐窗口）。 */
+export function clearBodyOverrides(plugin: ScopeHost): void {
+	for (const doc of collectDocuments(plugin)) {
+		const body = doc.body;
+		body.classList.remove(FONT_SANS_CLASS, FONT_OBSIDIAN_CLASS, BREATH_OFF_CLASS);
+		body.style.removeProperty('--ik-scale');
+		body.style.removeProperty('--ik-measure');
+	}
 }

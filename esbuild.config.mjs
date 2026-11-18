@@ -1,5 +1,6 @@
 import esbuild from 'esbuild';
 import process from 'process';
+import fs from 'node:fs';
 import { builtinModules } from 'node:module';
 
 const banner = `/*
@@ -9,6 +10,11 @@ if you want to view the source, please visit the github repository of this plugi
 `;
 
 const prod = process.argv[2] === 'production';
+
+// 装配契约（styles.css ⓪、README 安装节）：构建产物四成员含 fonts/，由
+// assets/fonts 自动拷出（复审第 1 轮 §10）；manifest/main.js/styles.css
+// 本就在仓库根，无需另拷。dev 与 prod 各执行一次，watch 期间字体不变。
+fs.cpSync('assets/fonts', 'fonts', { recursive: true });
 
 const context = await esbuild.context({
 	banner: {

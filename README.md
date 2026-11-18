@@ -1,6 +1,3 @@
-<!-- TODO（发布前处理）：manifest.json 的 author 字段暂填占位 "13757"，
-     请替换为真实署名后再发布；本注释无需保留。 -->
-
 # Inkstone 纸研
 
 自带 Kami 排版层与克制动效的 Obsidian 插件：把 tw93/kami 设计系统的纸感排版移植进阅读视图，暖纸底、油墨蓝作为唯一强调色、衬线承载层级，再叠一层只服务信息的微动效。排版层由插件自持，不依赖任何主题。
@@ -31,7 +28,7 @@
 
 ### 手动安装
 
-1. 从 Release 下载压缩包，或自行构建（`npm install && npm run build`），得到四个成员：`main.js`、`styles.css`、`manifest.json`、`fonts/` 目录。
+1. 从 Release 下载压缩包，或自行构建（`npm install && npm run build`），得到四个成员：`main.js`、`styles.css`、`manifest.json`、`fonts/` 目录（构建脚本自动从 `assets/fonts/` 拷出 `fonts/`）。
 2. 在库中打开 `.obsidian/plugins/`，新建 `inkstone` 文件夹，把四个成员完整复制进去：
 
    ```

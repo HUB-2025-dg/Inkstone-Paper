@@ -1,11 +1,18 @@
-import { RENDER_ROOT_SELECTOR, SCOPE_ON, type ScopeHost } from '../scope';
+import {
+	RENDER_ROOT_SELECTOR,
+	SCOPE_ON,
+	collectDocuments,
+	prefersReducedMotion,
+	type ScopeHost,
+} from '../scope';
 
 /**
  * 滚动渐显（PLAN §8.1）：IntersectionObserver 驱动的块级淡入 + 8px 上浮，
  * 240ms ease-out，进入视口触发一次（揭示后 unobserve，不回退）。
  * 只在 `.inkstone` 作用域的阅读视图生效；受效果总开关 + 独立开关门控；
  * reduced-motion 时不隐藏任何块（JS 短路不挂观察器，CSS media query 兜底）。
- * 观察器按渲染根登记：插件卸载与视图关闭时断开，类名全部摘除（零残留）。
+ * 观察器按渲染根登记：插件卸载与视图关闭时断开，类名全部摘除（零残留，
+ * 弹窗窗口逐 document 清理，复审第 1 轮 §5）；Live Preview 域内渲染不参与。
  */
 
 const REVEAL_CLASS = 'inkstone-reveal';
@@ -13,9 +20,6 @@ const REVEALED_CLASS = 'inkstone-revealed';
 
 /** 渲染根 → 该根的观察器；卸载/视图关闭时 disconnect。 */
 const observers = new Map<HTMLElement, IntersectionObserver>();
-
-const prefersReducedMotion = (): boolean =>
-	window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function onRevealEntries(entries: IntersectionObserverEntry[], observer: IntersectionObserver): void {
 	for (const entry of entries) {
@@ -43,8 +47,11 @@ function pruneDetachedRoots(): void {
 
 export function registerRevealEffect(plugin: ScopeHost): void {
 	plugin.registerMarkdownPostProcessor((el) => {
-		const rootEl = el.closest(RENDER_ROOT_SELECTOR) ?? el;
-		if (!rootEl.instanceOf(HTMLElement)) return;
+		// Live Preview 域内渲染不参与（ADR-0003：LP 无动效；复审第 1 轮 §3）
+		if (el.closest('.cm-editor')) return;
+		// 只认真实阅读渲染根：不回退到 el 本身（LP widget 等无根宿主不参与）
+		const rootEl = el.closest(RENDER_ROOT_SELECTOR);
+		if (!rootEl?.instanceOf(HTMLElement)) return;
 		if (!rootEl.classList.contains(SCOPE_ON)) return;
 		const { effectsEnabled, revealEnabled } = plugin.inkstoneSettings;
 		if (!effectsEnabled || !revealEnabled) return;
@@ -72,12 +79,15 @@ export function registerRevealEffect(plugin: ScopeHost): void {
 	plugin.registerEvent(plugin.app.workspace.on('layout-change', pruneDetachedRoots));
 }
 
-/** 插件卸载：断开全部观察器并摘除类名，恢复原文档外观。 */
-export function unloadRevealEffect(): void {
+/** 插件卸载：断开全部观察器并逐窗口摘除类名，恢复原文档外观。 */
+export function unloadRevealEffect(plugin: ScopeHost): void {
 	for (const observer of observers.values()) observer.disconnect();
 	observers.clear();
-	const nodes = document.querySelectorAll(`.${REVEAL_CLASS}, .${REVEALED_CLASS}`);
-	for (const node of Array.from(nodes)) {
-		node.classList.remove(REVEAL_CLASS, REVEALED_CLASS);
+	// 弹窗窗口有独立 document（复审第 1 轮 §5）：逐窗口清理
+	for (const doc of collectDocuments(plugin)) {
+		const nodes = doc.querySelectorAll(`.${REVEAL_CLASS}, .${REVEALED_CLASS}`);
+		for (const node of Array.from(nodes)) {
+			node.classList.remove(REVEAL_CLASS, REVEALED_CLASS);
+		}
 	}
 }
