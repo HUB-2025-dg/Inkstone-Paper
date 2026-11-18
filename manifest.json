@@ -1,0 +1,9 @@
+{
+	"id": "inkstone",
+	"name": "Inkstone 纸研",
+	"version": "0.1.0",
+	"minAppVersion": "1.5.0",
+	"description": "Kami-inspired typesetting and restrained micro-motion for Obsidian notes.",
+	"author": "13757",
+	"isDesktopOnly": false
+}
