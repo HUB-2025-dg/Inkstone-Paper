@@ -117,25 +117,25 @@ D:\Obsidian-Kami\
 
 - [x] 1. 蓝图落盘：PLAN.md（本文件）
 - [x] 2. 文书与仓库：GLOSSARY.md、docs/adr/0001-0004、.gitignore、git init + 首提交
-- [ ] 3. 工程骨架：package.json / esbuild / tsconfig / eslint / manifest / versions / version-bump / 最小 main.ts；`npm i`；验收：`npm run build` + `npm run lint` 全绿
-- [ ] 4. 排版层：令牌 + styles.css 全套映射 + scope.ts + mapping.ts；验收：构建全绿 + 真实库实测
-- [ ] 5. 动效层：reveal / focus / typewriter + 呼吸 CSS；验收：构建全绿 + 逐项开关实测
-- [ ] 6. 设置面板：InkstoneSettingTab 全部设置项 + frontmatter 覆盖生效
-- [ ] 7. 字体打包：assets/fonts/ 两款 OFL 字体 + LICENSE + @font-face；验证渲染与体积
-- [ ] 8. 装配：构建产物装入 `spark-cache` 库 `.obsidian/plugins/inkstone/`，铺全要素验收样例笔记
-- [ ] 9. 收尾：README（中英双语，致谢 tw93/kami）、PLAN 状态更新、git 提交
+- [x] 3. 工程骨架：package.json / esbuild / tsconfig / eslint / manifest / versions / version-bump / 最小 main.ts；`npm i`；验收：`npm run build` + `npm run lint` 全绿
+- [x] 4. 排版层：令牌 + styles.css 全套映射 + scope.ts + mapping.ts；验收：构建全绿 + 真实库实测
+- [x] 5. 动效层：reveal / focus / typewriter + 呼吸 CSS；验收：构建全绿 + 逐项开关实测
+- [x] 6. 设置面板：InkstoneSettingTab 全部设置项 + frontmatter 覆盖生效
+- [x] 7. 字体打包：assets/fonts/ 两款 OFL 字体 + LICENSE + @font-face；验证渲染与体积
+- [x] 8. 装配：构建产物装入 `spark-cache` 库 `.obsidian/plugins/inkstone/`，铺全要素验收样例笔记
+- [x] 9. 收尾：README（中英双语，致谢 tw93/kami）、PLAN 状态更新、git 提交
 - [ ] 10. 独立复审 + 修复：全代码对照 PLAN 与审核规范；复审发现逐条修复并复验
 
 ## 11. v1.0 验收清单（终点判定）
 
-- [ ] `npm run lint` 零错误；`npm run build` 通过
+- [x] `npm run lint` 零错误；`npm run build` 通过
 - [ ] 全要素样例笔记：§7 映射逐项核对（含 callout 全类型）
 - [ ] 四项动效各开关实测；prefers-reduced-motion 退化生效
 - [ ] `inkstone: false` 单篇禁用；全局开关生效
 - [ ] 明暗双模式令牌正确
 - [ ] 禁用插件后笔记零残留恢复原状
 - [ ] 长笔记（300+ 段）滚动不卡；控制台无报错（默认只允许 error 级）
-- [ ] README 双语、manifest 完整（author 待用户替换 "13757"）
+- [x] README 双语、manifest 完整（author 待用户替换 "13757"）
 
 ## 12. 文档协议
 
