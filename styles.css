@@ -3,7 +3,7 @@
    令牌与组件规格源：tw93/kami（MIT）references/design.md §1-§4、CHEATSHEET.md。
    分段：① 令牌（亮/暗/白纸变体）② 阅读域排版（标题阶梯/正文）③ §7 组件映射
    ④ Live Preview 共享层（只共享令牌与基础排版，无动效）⑤ 动效层（阅读域）
-   ⑥ reduced-motion。
+   ⑥ reduced-motion ⑦ 设置驱动的覆盖（scope.ts → body 类/CSS 变量）。
    作用域：阅读模式由 scope.ts 挂 `.inkstone`；Live Preview 以 body 上的
    `.inkstone-global`（全局开关镜像）为前提。
    约束：tag 一律实底 hex（禁 rgba）；无装饰性线条（线只做分隔/状态/关系）；
@@ -36,21 +36,26 @@ body {
 	--ik-breaking-bg: #f0e0d8;
 	--ik-breaking-fg: #8b4513;
 
-	/* 字体栈：单一衬线承载全页（--sans 恒等衬线）；mono 带 CJK 回退 */
+	/* 字体栈：单一衬线承载全页（--sans 恒等衬线）；mono 带 CJK 回退。
+	   生效字体一律取 --ik-font（默认恒等衬线；字体族覆盖设置经 body 类改写，见 ⑦） */
 	--ik-serif: 'TsangerJinKai02', 'Source Han Serif SC', 'Source Han Serif CN',
 		'Noto Serif CJK SC', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', Georgia, serif;
+	--ik-font: var(--ik-serif);
 	--ik-sans: var(--ik-serif);
 	--ik-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', Consolas, Monaco,
 		'TsangerJinKai02', 'Source Han Serif SC', monospace;
 
-	/* 屏显字号阶梯：pt × 1.33，12px 下限，所有字号落在阶梯上（ladder discipline） */
-	--ik-size-display: 48px; /* 36pt：inline title */
-	--ik-size-h1: 29px;      /* 22pt */
-	--ik-size-h2: 21px;      /* 16pt */
-	--ik-size-h3: 17px;      /* 13pt */
-	--ik-size-h4: 15px;      /* 11pt */
-	--ik-size-body: 13px;    /* 10pt */
-	--ik-size-label: 12px;   /* 9pt：h5/h6、题注、标签 */
+	/* 屏显字号阶梯：pt × 1.33，12px 下限，所有字号落在阶梯上（ladder discipline）。
+	   整条阶梯乘 --ik-scale（字号缩放设置，scope.ts 写 body 内联变量，默认 1；
+	   用户显式缩放可越过默认阶梯的 12px 下限） */
+	--ik-scale: 1;
+	--ik-size-display: calc(48px * var(--ik-scale)); /* 36pt：inline title */
+	--ik-size-h1: calc(29px * var(--ik-scale));      /* 22pt */
+	--ik-size-h2: calc(21px * var(--ik-scale));      /* 16pt */
+	--ik-size-h3: calc(17px * var(--ik-scale));      /* 13pt */
+	--ik-size-h4: calc(15px * var(--ik-scale));      /* 11pt */
+	--ik-size-body: calc(13px * var(--ik-scale));    /* 10pt */
+	--ik-size-label: calc(12px * var(--ik-scale));   /* 9pt：h5/h6、题注、标签 */
 
 	/* 间距（4pt 基，屏 px） */
 	--ik-space-xs: 3px;
@@ -60,7 +65,7 @@ body {
 	--ik-space-xl: 26px;
 	--ik-space-2xl: 40px;
 
-	/* 版心：阅读档 700px（PLAN §7，设置项后续步骤接入） */
+	/* 版心：阅读档 700px（PLAN §7；栏宽设置经 scope.ts 写 body 内联变量覆盖） */
 	--ik-measure: 700px;
 }
 
@@ -97,11 +102,11 @@ body.theme-dark {
 
 /* ------------------------------------------------ ② 阅读域：基础排版 -- */
 
-/* 暖纸页底 + 衬线正文 + 版心 */
+/* 暖纸页底 + 生效字体（默认衬线）正文 + 版心 */
 .inkstone {
 	background: var(--ik-parchment);
 	color: var(--ik-near-black);
-	font-family: var(--ik-serif);
+	font-family: var(--ik-font);
 	--file-line-width: var(--ik-measure);
 	/* 代码块高亮：只重定向 Obsidian 语法变量到 Kami 暖色系，保留其高亮逻辑 */
 	--code-background: var(--ik-ivory);
@@ -519,7 +524,7 @@ body.theme-dark {
    行内代码/tag/mark 暖底。交互语义色（链接）与一切过渡动画留给阅读域。 */
 
 body.inkstone-global .markdown-source-view.mod-cm6 .cm-scroller {
-	font-family: var(--ik-serif);
+	font-family: var(--ik-font);
 	line-height: 1.55;
 }
 
@@ -653,4 +658,36 @@ body.inkstone-global .markdown-source-view.mod-cm6 .cm-highlight {
 	.inkstone .inkstone-reveal.inkstone-revealed:hover {
 		transform: none;
 	}
+}
+
+/* --------------------------------- ⑦ 设置驱动的覆盖（scope.ts → body） -- */
+/* 连续值（字号缩放、栏宽）经 body 内联 CSS 自定义属性传入（审核规范允许
+   自定义属性作为代码向 CSS 类传值的通道）；离散值（字体族覆盖、呼吸开关）
+   经 body 类。默认值全部来自 ①，此处只声明覆盖态。 */
+
+/* 字体族覆盖（settings.fontOverride）：改写生效字体令牌，
+   排版层与 Live Preview 共享层全部经 --ik-font 取值 */
+body.inkstone-font-sans {
+	--ik-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+		'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+body.inkstone-font-obsidian {
+	--ik-font: var(--font-text);
+}
+
+/* 交互呼吸关闭（效果总开关或呼吸开关任一关闭）：摘除卡片起伏与链接下划线
+   生长的过渡与 hover 态。外链的常显下划线是状态编码，保留不动（仅去动画） */
+body.inkstone-breath-off .inkstone .callout,
+body.inkstone-breath-off .inkstone pre,
+body.inkstone-breath-off .inkstone a {
+	transition: none;
+}
+body.inkstone-breath-off .inkstone pre:hover,
+body.inkstone-breath-off .inkstone .callout:hover,
+body.inkstone-breath-off .inkstone .inkstone-reveal.inkstone-revealed:hover {
+	transform: none;
+	box-shadow: inset 0 0 0 1px transparent;
+}
+body.inkstone-breath-off .inkstone a:not(.external-link):hover {
+	background-size: 0% 1px;
 }

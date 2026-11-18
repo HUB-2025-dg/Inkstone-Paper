@@ -6,6 +6,7 @@ import { SCOPE_ON, type ScopeHost } from '../scope';
  * 实现：把可见文本节点逐字包进透明 span（布局不变），按设置速度（字/秒）
  * 以 requestAnimationFrame 依序摘除 hide 类显形；点击或 Esc 跳过。
  * 结束/跳过/卸载时解包恢复原文本节点（零残留）。
+ * 受效果总开关 + typewriterEnabled 独立开关门控，关闭时命令不可用；
  * reduced-motion 时不启动（退化静态，命令在命令面板中亦不可见）。
  */
 
@@ -146,12 +147,14 @@ export function registerTypewriterCommand(plugin: ScopeHost): void {
 		id: 'play-typewriter-effect',
 		name: 'Play typewriter effect',
 		checkCallback: (checking: boolean) => {
-			// 播放中不重复触发；reduced-motion 时命令不可见（退化静态）
+			// 播放中不重复触发；效果总开关/独立开关关闭或 reduced-motion 时命令不可见
 			if (session || prefersReducedMotion()) return false;
+			const { effectsEnabled, typewriterEnabled, typewriterSpeed } = plugin.inkstoneSettings;
+			if (!effectsEnabled || !typewriterEnabled) return false;
 			const root = findReadingRoot(plugin);
 			if (!root || !root.classList.contains(SCOPE_ON)) return false;
 			if (checking) return true;
-			startSession(root, plugin.inkstoneSettings.typewriterSpeed);
+			startSession(root, typewriterSpeed);
 			return true;
 		},
 	});

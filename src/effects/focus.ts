@@ -5,7 +5,7 @@ import { RENDER_ROOT_SELECTOR, SCOPE_ON, type ScopeHost } from '../scope';
  * 用 IntersectionObserver 的视口中带（rootMargin 上下各收 30%）判定：段落跨过
  * 带边界时回调，带外挂 dim 类、带内摘除，滚动全程状态自洽。根级挂
  * `.inkstone-focus` 提供过渡底座（只在阅读域 `.inkstone` 内生效）。
- * 设置 focusEnabled 开关；reduced-motion 时不挂观察器（保持静态排版）。
+ * 受效果总开关 + focusEnabled 独立开关门控；reduced-motion 时不挂观察器（保持静态排版）。
  */
 
 const FOCUS_SCOPE_CLASS = 'inkstone-focus';
@@ -45,7 +45,8 @@ export function registerFocusEffect(plugin: ScopeHost): void {
 		const rootEl = el.closest(RENDER_ROOT_SELECTOR) ?? el;
 		if (!rootEl.instanceOf(HTMLElement)) return;
 		if (!rootEl.classList.contains(SCOPE_ON)) return;
-		if (!plugin.inkstoneSettings.focusEnabled) return;
+		const { effectsEnabled, focusEnabled } = plugin.inkstoneSettings;
+		if (!effectsEnabled || !focusEnabled) return;
 		if (prefersReducedMotion()) return;
 
 		let observer = observers.get(rootEl);

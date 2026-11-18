@@ -3,8 +3,8 @@ import { RENDER_ROOT_SELECTOR, SCOPE_ON, type ScopeHost } from '../scope';
 /**
  * 滚动渐显（PLAN §8.1）：IntersectionObserver 驱动的块级淡入 + 8px 上浮，
  * 240ms ease-out，进入视口触发一次（揭示后 unobserve，不回退）。
- * 只在 `.inkstone` 作用域的阅读视图生效；reduced-motion 时不隐藏任何块
- * （JS 短路不挂观察器，CSS media query 兜底）。
+ * 只在 `.inkstone` 作用域的阅读视图生效；受效果总开关 + 独立开关门控；
+ * reduced-motion 时不隐藏任何块（JS 短路不挂观察器，CSS media query 兜底）。
  * 观察器按渲染根登记：插件卸载与视图关闭时断开，类名全部摘除（零残留）。
  */
 
@@ -46,7 +46,8 @@ export function registerRevealEffect(plugin: ScopeHost): void {
 		const rootEl = el.closest(RENDER_ROOT_SELECTOR) ?? el;
 		if (!rootEl.instanceOf(HTMLElement)) return;
 		if (!rootEl.classList.contains(SCOPE_ON)) return;
-		if (!plugin.inkstoneSettings.revealEnabled) return;
+		const { effectsEnabled, revealEnabled } = plugin.inkstoneSettings;
+		if (!effectsEnabled || !revealEnabled) return;
 		if (prefersReducedMotion()) return;
 
 		let observer = observers.get(rootEl);
