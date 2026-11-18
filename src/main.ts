@@ -1,7 +1,17 @@
 import { Plugin } from 'obsidian';
+import { DEFAULT_SETTINGS, loadSettings, type InkstoneSettings } from './settings';
+import { applyGlobalScope, clearScopeClasses, registerScopePostProcessor } from './scope';
 
 export default class InkstonePlugin extends Plugin {
-	override async onload() {
-		// 工程骨架占位：排版层与动效层由 PLAN.md §10 步骤 4-6 填充。
+	inkstoneSettings: InkstoneSettings = DEFAULT_SETTINGS;
+
+	override async onload(): Promise<void> {
+		await loadSettings(this);
+		applyGlobalScope(this.inkstoneSettings);
+		registerScopePostProcessor(this);
+	}
+
+	override onunload(): void {
+		clearScopeClasses();
 	}
 }

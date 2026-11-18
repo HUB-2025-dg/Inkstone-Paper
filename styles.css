@@ -1,1 +1,587 @@
-/* Inkstone styles. Tokens follow the tw93/kami design system. */
+/* ==========================================================================
+   Inkstone 纸研 — Kami 排版层
+   令牌与组件规格源：tw93/kami（MIT）references/design.md §1-§4、CHEATSHEET.md。
+   分段：① 令牌（亮/暗/白纸变体）② 阅读域排版（标题阶梯/正文）③ §7 组件映射
+   ④ Live Preview 共享层（只共享令牌与基础排版，无动效）⑤ reduced-motion。
+   作用域：阅读模式由 scope.ts 挂 `.inkstone`；Live Preview 以 body 上的
+   `.inkstone-global`（全局开关镜像）为前提。
+   约束：tag 一律实底 hex（禁 rgba）；无装饰性线条（线只做分隔/状态/关系）；
+   无斜体；灰一律暖调（R≈G>B）；油墨蓝是唯一强调色（breaking 为注册例外）。
+   ========================================================================== */
+
+/* ------------------------------------------------------- ① 令牌：亮色 -- */
+body {
+	/* Kami 表面 */
+	--ik-parchment: #f5f4ed;      /* 页面底（invariant 1） */
+	--ik-ivory: #faf9f5;          /* 安静填充容器 */
+	--ik-inline-code-bg: #f0eee6; /* 行内代码暖底 */
+	--ik-warm-sand: #e8e6dc;      /* 按钮/交互面 */
+	/* Kami 强调：唯一彩色（≤5% 表面） */
+	--ik-brand: #1b365d;
+	--ik-brand-light: #2d5a8a;    /* 暗面链接 */
+	/* Kami 文字四阶（全部暖调 R≈G>B） */
+	--ik-near-black: #141413;
+	--ik-dark-warm: #3d3d3a;
+	--ik-olive: #504e49;
+	--ik-stone: #6b6a64;
+	/* Kami 边线 */
+	--ik-border: #e8e6dc;
+	--ik-border-soft: #e5e3d8;
+	--ik-line: #d8d5c8;
+	/* 注册实底 tint（用 token，禁 rgba） */
+	--ik-tag-bg: #e4ecf5;
+	--ik-brand-tint: #eef2f7;
+	/* 唯一语义警示（breaking，注册例外） */
+	--ik-breaking-bg: #f0e0d8;
+	--ik-breaking-fg: #8b4513;
+
+	/* 字体栈：单一衬线承载全页（--sans 恒等衬线）；mono 带 CJK 回退 */
+	--ik-serif: 'TsangerJinKai02', 'Source Han Serif SC', 'Source Han Serif CN',
+		'Noto Serif CJK SC', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', Georgia, serif;
+	--ik-sans: var(--ik-serif);
+	--ik-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', Consolas, Monaco,
+		'TsangerJinKai02', 'Source Han Serif SC', monospace;
+
+	/* 屏显字号阶梯：pt × 1.33，12px 下限，所有字号落在阶梯上（ladder discipline） */
+	--ik-size-display: 48px; /* 36pt：inline title */
+	--ik-size-h1: 29px;      /* 22pt */
+	--ik-size-h2: 21px;      /* 16pt */
+	--ik-size-h3: 17px;      /* 13pt */
+	--ik-size-h4: 15px;      /* 11pt */
+	--ik-size-body: 13px;    /* 10pt */
+	--ik-size-label: 12px;   /* 9pt：h5/h6、题注、标签 */
+
+	/* 间距（4pt 基，屏 px） */
+	--ik-space-xs: 3px;
+	--ik-space-sm: 5px;
+	--ik-space-md: 10px;
+	--ik-space-lg: 16px;
+	--ik-space-xl: 26px;
+	--ik-space-2xl: 40px;
+
+	/* 版心：阅读档 700px（PLAN §7，设置项后续步骤接入） */
+	--ik-measure: 700px;
+}
+
+/* 令牌：暗色（Kami deep-dark 系，PLAN §6：页底 #141413 / 容器 #1a1917 /
+   强调 #2D5A8A；文字阶相应提亮并保持暖调，tint 取对应实底 hex） */
+body.theme-dark {
+	--ik-parchment: #141413;
+	--ik-ivory: #1a1917;
+	--ik-inline-code-bg: #232220;
+	--ik-warm-sand: #2e2c29;
+	--ik-brand: #2d5a8a;
+	--ik-brand-light: #3f6f9f;
+	--ik-near-black: #eae8df;
+	--ik-dark-warm: #c9c6bb;
+	--ik-olive: #a8a49a;
+	--ik-stone: #8a867d;
+	--ik-border: #2e2c29;
+	--ik-border-soft: #282723;
+	--ik-line: #3a3833;
+	--ik-tag-bg: #233850;
+	--ik-brand-tint: #1b2938;
+	--ik-breaking-bg: #3d2d24;
+	--ik-breaking-fg: #cf9d72;
+}
+
+/* 白纸打印变体（frontmatter `inkstone-paper: true`）：invariant 1 的显式例外。
+   挂在容器上（specificity 低于 body.theme-dark），暗色模式自动回到 deep-dark。 */
+.inkstone-paper {
+	--ik-parchment: #fcfbf7;
+	--ik-ivory: #ffffff;
+	--ik-inline-code-bg: #f4f2ea;
+	--ik-warm-sand: #efece1;
+}
+
+/* ------------------------------------------------ ② 阅读域：基础排版 -- */
+
+/* 暖纸页底 + 衬线正文 + 版心 */
+.inkstone {
+	background: var(--ik-parchment);
+	color: var(--ik-near-black);
+	font-family: var(--ik-serif);
+	--file-line-width: var(--ik-measure);
+	/* 代码块高亮：只重定向 Obsidian 语法变量到 Kami 暖色系，保留其高亮逻辑 */
+	--code-background: var(--ik-ivory);
+	--code-normal: var(--ik-near-black);
+	--code-keyword: var(--ik-brand);
+	--code-string: var(--ik-olive);
+	--code-comment: var(--ik-stone);
+	--code-function: var(--ik-near-black);
+	--code-operator: var(--ik-dark-warm);
+	--code-property: var(--ik-dark-warm);
+	--code-punctuation: var(--ik-olive);
+	--code-tag: var(--ik-brand);
+	--code-value: var(--ik-dark-warm);
+	--code-important: var(--ik-brand);
+}
+
+/* inline title：Display 档，中文 display 给光学字距（design.md §2 letter-spacing） */
+.inkstone .inline-title {
+	font-size: var(--ik-size-display);
+	font-weight: 500;
+	line-height: 1.2;
+	letter-spacing: 0.02em;
+	color: var(--ik-near-black);
+	margin-bottom: var(--ik-space-xl);
+}
+
+/* 标题阶梯：层级靠字号 + 间距，无装饰线（proximity law：上方 ≥ 2 倍下方） */
+.inkstone h1,
+.inkstone h2,
+.inkstone h3,
+.inkstone h4,
+.inkstone h5,
+.inkstone h6 {
+	color: var(--ik-near-black);
+	font-weight: 500;
+}
+.inkstone h1 {
+	font-size: var(--ik-size-h1);
+	line-height: 1.2;
+	margin: var(--ik-space-2xl) 0 var(--ik-space-md);
+}
+.inkstone h2 {
+	font-size: var(--ik-size-h2);
+	line-height: 1.25;
+	margin: var(--ik-space-xl) 0 var(--ik-space-md);
+}
+.inkstone h3 {
+	font-size: var(--ik-size-h3);
+	line-height: 1.3;
+	margin: var(--ik-space-lg) 0 var(--ik-space-md);
+}
+.inkstone h4 {
+	font-size: var(--ik-size-h4);
+	line-height: 1.3;
+	margin: var(--ik-space-lg) 0 var(--ik-space-sm);
+}
+/* h5/h6 落在 label 档；h6 再降一色阶区分 */
+.inkstone h5 {
+	font-size: var(--ik-size-label);
+	line-height: 1.35;
+	letter-spacing: 0.015em;
+	margin: var(--ik-space-lg) 0 var(--ik-space-sm);
+}
+.inkstone h6 {
+	font-size: var(--ik-size-label);
+	line-height: 1.35;
+	letter-spacing: 0.015em;
+	color: var(--ik-stone);
+	margin: var(--ik-space-lg) 0 var(--ik-space-sm);
+}
+
+/* 正文：阅读档 1.55 行高（PLAN §7）；
+   中文正文配 TsangerJinKai 给 0.1-0.2pt 字距（invariant 7，13px × 0.015 ≈ 0.15pt） */
+.inkstone p {
+	font-size: var(--ik-size-body);
+	line-height: 1.55;
+	letter-spacing: 0.015em;
+	color: var(--ik-near-black);
+	margin: 0 0 1em;
+}
+
+/* 强调：500 为 serif 权重上限（invariant 5，锁死防合成 700）；
+   斜体整体退场（invariant 10），em 回归正体 */
+.inkstone strong {
+	font-weight: 500;
+}
+.inkstone em {
+	font-style: normal;
+}
+
+/* 列表：原生 marker，油墨蓝着色（design.md §4 Lists，禁伪 ::before 装饰） */
+.inkstone ul,
+.inkstone ol {
+	padding-left: 21px;
+	font-size: var(--ik-size-body);
+	line-height: 1.55;
+	letter-spacing: 0.015em;
+}
+.inkstone ul li::marker {
+	color: var(--ik-brand);
+}
+.inkstone ol li::marker {
+	color: var(--ik-brand);
+	font-weight: 500;
+}
+.inkstone li {
+	margin-bottom: var(--ik-space-xs);
+}
+.inkstone li p {
+	margin-bottom: var(--ik-space-xs);
+}
+
+/* ---------------------------------------------- ③ 阅读域：§7 组件映射 -- */
+
+/* blockquote → Kami .quote：olive 色，无边条、无底 */
+.inkstone blockquote {
+	margin: var(--ik-space-lg) 21px;
+	padding: var(--ik-space-sm) 0;
+	border: none;
+	background: transparent;
+	color: var(--ik-olive);
+	font-size: var(--ik-size-body);
+	line-height: 1.55;
+}
+.inkstone blockquote p {
+	color: inherit;
+	margin-bottom: 0.5em;
+}
+
+/* table → kami-table：表头 0.6pt / 行 0.25pt 暖线，无斑马纹、无竖线、无框；
+   外列贴文字边（外列去 padding，表格与正文文字边缘对齐） */
+.inkstone table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--ik-size-body);
+	margin: var(--ik-space-lg) 0;
+	break-inside: avoid;
+	background: transparent;
+}
+.inkstone table th {
+	text-align: left;
+	font-weight: 500;
+	color: var(--ik-dark-warm);
+	padding: 8px 10px;
+	border-bottom: 0.6pt solid var(--ik-border);
+	background: transparent;
+}
+.inkstone table td {
+	padding: 7px 10px;
+	border-bottom: 0.25pt solid var(--ik-border);
+	vertical-align: top;
+	background: transparent;
+}
+.inkstone table th:first-child,
+.inkstone table td:first-child {
+	padding-left: 0;
+}
+.inkstone table th:last-child,
+.inkstone table td:last-child {
+	padding-right: 0;
+}
+
+/* 行内代码：#f0eee6 暖底，无框 */
+.inkstone :not(pre) > code {
+	background: var(--ik-inline-code-bg);
+	color: var(--ik-near-black);
+	font-family: var(--ik-mono);
+	font-size: 0.92em;
+	padding: 1px 4px;
+	border-radius: 3px;
+	border: none;
+}
+
+/* 代码块：ivory 代码卡 + mono，无边框（Kami .code-block）；
+   语法高亮颜色已由 ② 的 --code-* 重定向为暖色系 */
+.inkstone pre {
+	background: var(--ik-ivory);
+	border: none;
+	border-radius: 5px;
+	padding: 13px 18px;
+	font-family: var(--ik-mono);
+	font-size: var(--ik-size-label);
+	line-height: 1.5;
+}
+.inkstone pre code {
+	background: transparent;
+	padding: 0;
+	border-radius: 0;
+	font-size: inherit;
+}
+.inkstone .copy-code-button {
+	background: transparent;
+	box-shadow: none;
+	border: none;
+	color: var(--ik-stone);
+}
+
+/* tag：实底 #E4ECF5 + brand 字色（invariant 8：禁 rgba），无边无下划线 */
+.inkstone a.tag {
+	background: var(--ik-tag-bg);
+	color: var(--ik-brand);
+	border: none;
+	text-decoration: none;
+	background-image: none;
+	font-size: var(--ik-size-label);
+	font-weight: 500;
+	line-height: inherit;
+	padding: 1px 6px;
+	border-radius: 3px;
+	letter-spacing: 0.5px;
+}
+
+/* callout 全类型重映射（PLAN §7）：
+   中性 → ivory 卡；info/tip/success 族 → brand-tint（quiet fill 同 token）；
+   warning/failure 族 → breaking 双色（唯一语义警示）；quote/cite → .quote。
+   卡片一律无边框、无 accent edge（design.md「Subtractive rule」）。 */
+.inkstone .callout {
+	background: var(--ik-ivory);
+	border: none;
+	border-radius: 5px;
+	padding: var(--ik-space-md) var(--ik-space-lg);
+}
+.inkstone .callout-title {
+	color: var(--ik-near-black);
+	font-size: var(--ik-size-body);
+	font-weight: 500;
+}
+.inkstone .callout-icon {
+	color: var(--ik-olive);
+}
+.inkstone .callout-content {
+	font-size: var(--ik-size-body);
+	line-height: 1.55;
+	color: var(--ik-near-black);
+}
+
+/* info 族（brand-tint，图标用唯一强调色小面积点睛） */
+.inkstone .callout[data-callout='info'],
+.inkstone .callout[data-callout='todo'],
+.inkstone .callout[data-callout='tip'],
+.inkstone .callout[data-callout='hint'],
+.inkstone .callout[data-callout='important'],
+.inkstone .callout[data-callout='success'],
+.inkstone .callout[data-callout='check'],
+.inkstone .callout[data-callout='done'] {
+	background: var(--ik-brand-tint);
+}
+.inkstone .callout[data-callout='info'] .callout-icon,
+.inkstone .callout[data-callout='todo'] .callout-icon,
+.inkstone .callout[data-callout='tip'] .callout-icon,
+.inkstone .callout[data-callout='hint'] .callout-icon,
+.inkstone .callout[data-callout='important'] .callout-icon,
+.inkstone .callout[data-callout='success'] .callout-icon,
+.inkstone .callout[data-callout='check'] .callout-icon,
+.inkstone .callout[data-callout='done'] .callout-icon {
+	color: var(--ik-brand);
+}
+
+/* question 族：中性 ivory（疑问不是警示） */
+.inkstone .callout[data-callout='question'],
+.inkstone .callout[data-callout='help'],
+.inkstone .callout[data-callout='faq'],
+.inkstone .callout[data-callout='example'] {
+	background: var(--ik-ivory);
+}
+
+/* warning/failure 族 → breaking 双色（唯一语义警示色，全部暖调） */
+.inkstone .callout[data-callout='warning'],
+.inkstone .callout[data-callout='caution'],
+.inkstone .callout[data-callout='attention'],
+.inkstone .callout[data-callout='failure'],
+.inkstone .callout[data-callout='fail'],
+.inkstone .callout[data-callout='missing'],
+.inkstone .callout[data-callout='danger'],
+.inkstone .callout[data-callout='error'],
+.inkstone .callout[data-callout='bug'] {
+	background: var(--ik-breaking-bg);
+}
+.inkstone .callout[data-callout='warning'] .callout-title,
+.inkstone .callout[data-callout='caution'] .callout-title,
+.inkstone .callout[data-callout='attention'] .callout-title,
+.inkstone .callout[data-callout='failure'] .callout-title,
+.inkstone .callout[data-callout='fail'] .callout-title,
+.inkstone .callout[data-callout='missing'] .callout-title,
+.inkstone .callout[data-callout='danger'] .callout-title,
+.inkstone .callout[data-callout='error'] .callout-title,
+.inkstone .callout[data-callout='bug'] .callout-title {
+	color: var(--ik-breaking-fg);
+}
+.inkstone .callout[data-callout='warning'] .callout-icon,
+.inkstone .callout[data-callout='caution'] .callout-icon,
+.inkstone .callout[data-callout='attention'] .callout-icon,
+.inkstone .callout[data-callout='failure'] .callout-icon,
+.inkstone .callout[data-callout='fail'] .callout-icon,
+.inkstone .callout[data-callout='missing'] .callout-icon,
+.inkstone .callout[data-callout='danger'] .callout-icon,
+.inkstone .callout[data-callout='error'] .callout-icon,
+.inkstone .callout[data-callout='bug'] .callout-icon {
+	color: var(--ik-breaking-fg);
+}
+
+/* quote/cite → Kami .quote：无填充，olive 文本 */
+.inkstone .callout[data-callout='quote'],
+.inkstone .callout[data-callout='cite'] {
+	background: transparent;
+	padding: var(--ik-space-sm) 0;
+	margin: var(--ik-space-lg) 21px;
+}
+.inkstone .callout[data-callout='quote'] .callout-title,
+.inkstone .callout[data-callout='cite'] .callout-title,
+.inkstone .callout[data-callout='quote'] .callout-icon,
+.inkstone .callout[data-callout='cite'] .callout-icon,
+.inkstone .callout[data-callout='quote'] .callout-content,
+.inkstone .callout[data-callout='cite'] .callout-content {
+	color: var(--ik-olive);
+}
+
+/* hr：border-soft 发丝线，只做分隔（margin 即段落间的呼吸） */
+.inkstone hr {
+	border: none;
+	border-top: 1px solid var(--ik-border-soft);
+	background: transparent;
+	margin: var(--ik-space-2xl) 0;
+}
+
+/* img：8px 圆角（屏显块级圆角档）；alt 题注由 mapping.ts 生成节点，
+   这里只负责它的排版：stone 色、12px、1.45 行高 */
+.inkstone img {
+	border-radius: 8px;
+}
+.inkstone .inkstone-img-caption {
+	display: block;
+	color: var(--ik-stone);
+	font-size: var(--ik-size-label);
+	line-height: 1.45;
+	margin-top: var(--ik-space-xs);
+	text-align: center;
+}
+
+/* ==mark==：warm-sand 底 + near-black 字 */
+.inkstone mark {
+	background: var(--ik-warm-sand);
+	color: var(--ik-near-black);
+	padding: 1px 3px;
+	border-radius: 2px;
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+}
+
+/* 链接：dark-warm 色 + hover 下划线生长（呼吸动效 180ms）。
+   下划线用双层 currentColor 渐变实现（渲染为 1px 纯色线，非视觉渐变），
+   专属 .inkstone 作用域 —— Live Preview 不共享动效（ADR-0003） */
+.inkstone a {
+	color: var(--ik-dark-warm);
+	text-decoration: none;
+	background-image: linear-gradient(currentColor, currentColor);
+	background-repeat: no-repeat;
+	background-position: 0 100%;
+	background-size: 0% 1px;
+	transition: background-size 180ms ease-out;
+}
+.inkstone a:hover {
+	background-size: 100% 1px;
+}
+/* 外链：去掉 Obsidian 自带图标，改常显下划线（持续下划线即外链的状态编码） */
+.inkstone a.external-link {
+	padding-right: 0;
+	background-size: 100% 1px;
+}
+/* 未解析链接：stone 色弱化（信息状态，非装饰） */
+.inkstone a.internal-link.is-unresolved {
+	color: var(--ik-stone);
+}
+
+/* 任务列表：极简自绘勾选框，warm-sand 交互底；
+   勾线与 checked 文字退灰都是完成态编码，非装饰 */
+.inkstone input[type='checkbox'].task-list-item-checkbox {
+	appearance: none;
+	-webkit-appearance: none;
+	position: relative;
+	width: 14px;
+	height: 14px;
+	margin: 0 6px 0 0;
+	border: 1px solid var(--ik-line);
+	border-radius: 3px;
+	background: var(--ik-ivory);
+	vertical-align: middle;
+	cursor: pointer;
+	transition: background 150ms ease-out;
+}
+.inkstone input[type='checkbox'].task-list-item-checkbox:hover {
+	background: var(--ik-warm-sand);
+}
+.inkstone input[type='checkbox'].task-list-item-checkbox:checked {
+	background: var(--ik-warm-sand);
+	border-color: var(--ik-line);
+}
+.inkstone input[type='checkbox'].task-list-item-checkbox:checked::after {
+	content: '';
+	position: absolute;
+	left: 4px;
+	top: 1px;
+	width: 4px;
+	height: 8px;
+	border-right: 1.5px solid var(--ik-dark-warm);
+	border-bottom: 1.5px solid var(--ik-dark-warm);
+	transform: rotate(45deg);
+}
+.inkstone li.task-list-item:has(> input.task-list-item-checkbox:checked) {
+	color: var(--ik-stone);
+}
+
+/* --------------------------------- ④ Live Preview 共享（无动效） ------- */
+/* 只共享：令牌（body 级已全量生效）+ 字体族/行高 + 标题阶梯 +
+   行内代码/tag/mark 暖底。交互语义色（链接）与一切过渡动画留给阅读域。 */
+
+body.inkstone-global .markdown-source-view.mod-cm6 .cm-scroller {
+	font-family: var(--ik-serif);
+	line-height: 1.55;
+}
+
+body.inkstone-global .markdown-source-view .inline-title {
+	font-size: var(--ik-size-display);
+	font-weight: 500;
+	line-height: 1.2;
+	letter-spacing: 0.02em;
+	color: var(--ik-near-black);
+}
+
+/* 编辑态标题行走同一阶梯（HyperMD 行类），行高放宽到 1.25 保 CJK 下延不裁切 */
+body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header {
+	color: var(--ik-near-black);
+}
+body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-1 {
+	font-size: var(--ik-size-h1);
+	line-height: 1.25;
+}
+body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-2 {
+	font-size: var(--ik-size-h2);
+	line-height: 1.25;
+}
+body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-3 {
+	font-size: var(--ik-size-h3);
+	line-height: 1.3;
+}
+body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-4 {
+	font-size: var(--ik-size-h4);
+	line-height: 1.3;
+}
+body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-5 {
+	font-size: var(--ik-size-label);
+	line-height: 1.35;
+	letter-spacing: 0.015em;
+}
+body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-6 {
+	font-size: var(--ik-size-label);
+	line-height: 1.35;
+	letter-spacing: 0.015em;
+	color: var(--ik-stone);
+}
+
+body.inkstone-global .markdown-source-view.mod-cm6 .cm-inline-code {
+	background: var(--ik-inline-code-bg);
+	color: var(--ik-near-black);
+	border-radius: 3px;
+}
+body.inkstone-global .markdown-source-view.mod-cm6 .cm-hashtag {
+	color: var(--ik-brand);
+}
+body.inkstone-global .markdown-source-view.mod-cm6 .cm-highlight {
+	background: var(--ik-warm-sand);
+	color: var(--ik-near-black);
+	border-radius: 2px;
+}
+
+/* ----------------------------------------------- ⑤ reduced-motion ----- */
+/* 排版层唯一的动效是链接下划线生长与勾选框底色过渡；其余动效（步骤 5）
+   统一走 IntersectionObserver 等实现，并同样尊重此查询 */
+@media (prefers-reduced-motion: reduce) {
+	.inkstone a,
+	.inkstone input[type='checkbox'].task-list-item-checkbox {
+		transition: none;
+	}
+}
