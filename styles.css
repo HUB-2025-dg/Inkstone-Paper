@@ -1,14 +1,37 @@
 /* ==========================================================================
    Inkstone 纸研 — Kami 排版层
    令牌与组件规格源：tw93/kami（MIT）references/design.md §1-§4、CHEATSHEET.md。
-   分段：① 令牌（亮/暗/白纸变体）② 阅读域排版（标题阶梯/正文）③ §7 组件映射
-   ④ Live Preview 共享层（只共享令牌与基础排版，无动效）⑤ 动效层（阅读域）
-   ⑥ reduced-motion ⑦ 设置驱动的覆盖（scope.ts → body 类/CSS 变量）。
+   分段：⓪ 打包字体 ① 令牌（亮/暗/白纸变体）② 阅读域排版（标题阶梯/正文）
+   ③ §7 组件映射 ④ Live Preview 共享层（只共享令牌与基础排版，无动效）
+   ⑤ 动效层（阅读域）⑥ reduced-motion ⑦ 设置驱动的覆盖（scope.ts → body）。
    作用域：阅读模式由 scope.ts 挂 `.inkstone`；Live Preview 以 body 上的
    `.inkstone-global`（全局开关镜像）为前提。
    约束：tag 一律实底 hex（禁 rgba）；无装饰性线条（线只做分隔/状态/关系）；
    无斜体；灰一律暖调（R≈G>B）；油墨蓝是唯一强调色（breaking 为注册例外）。
    ========================================================================== */
+
+/* --------------------------------------------------- ⓪ 打包字体（OFL） -- */
+/* 装配契约：assets/fonts/ 四个文件拷至插件目录 fonts/（与 styles.css 同级）。
+   src 用相对 url，随本样式表基址解析（桌面 app://，移动端随样式表协议），
+   禁用插件时 Obsidian 卸载插件样式表即随之移除，零残留；文件缺失时静默
+   回退 ① 中的本机字体栈。族名以字体文件 name 表为准。
+   （不采用 JS 注入 <style>：eslint-plugin-obsidianmd no-forbidden-elements
+   禁止且不可豁免；不采用 data URI：24.9MB TTF 转 base64 膨胀约 35%，违背
+   体积优先。详 src/main.ts 顶部说明。） */
+@font-face {
+	font-family: 'LXGW WenKai Screen';
+	src: url('fonts/LXGWWenKaiScreen.ttf') format('truetype');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: 'JetBrains Mono';
+	src: url('fonts/JetBrainsMono-Regular.woff2') format('woff2');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
 
 /* ------------------------------------------------------- ① 令牌：亮色 -- */
 body {
@@ -37,8 +60,11 @@ body {
 	--ik-breaking-fg: #8b4513;
 
 	/* 字体栈：单一衬线承载全页（--sans 恒等衬线）；mono 带 CJK 回退。
+	   打包 OFL 字体（⓪ @font-face，assets/fonts 装配为插件目录 fonts/）：
+	   'LXGW WenKai Screen'（霞鹜文楷屏幕版）为标题+正文首选，缺失或加载中
+	   （font-display: swap）时顺次回退本机衬线；'JetBrains Mono' 为代码首选。
 	   生效字体一律取 --ik-font（默认恒等衬线；字体族覆盖设置经 body 类改写，见 ⑦） */
-	--ik-serif: 'TsangerJinKai02', 'Source Han Serif SC', 'Source Han Serif CN',
+	--ik-serif: 'LXGW WenKai Screen', 'TsangerJinKai02', 'Source Han Serif SC', 'Source Han Serif CN',
 		'Noto Serif CJK SC', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', Georgia, serif;
 	--ik-font: var(--ik-serif);
 	--ik-sans: var(--ik-serif);

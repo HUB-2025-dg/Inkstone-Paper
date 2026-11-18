@@ -18,6 +18,17 @@ import { registerRevealEffect, unloadRevealEffect } from './effects/reveal';
 import { registerFocusEffect, unloadFocusEffect } from './effects/focus';
 import { registerTypewriterCommand, unloadTypewriterEffect } from './effects/typewriter';
 
+/**
+ * 字体接入说明（PLAN §4/§5）：打包 OFL 字体的 @font-face 声明在 styles.css 顶部，
+ * src 为相对 url('fonts/…')，随样式表基址解析（桌面 app://、移动端随样式表协议），
+ * 字体文件装配于插件目录 fonts/（assets/fonts → 拷入，与 main.js/styles.css 同级）。
+ * 不采用 JS 注入 <style>：eslint-plugin-obsidianmd no-forbidden-elements 禁止创建
+ * style/link 元素，且 eslint-comments/no-restricted-disable 连豁免也禁止；亦不采用
+ * data URI：24.9MB TTF 转 base64 会使 styles.css 膨胀至约 35MB，违背体积优先。
+ * 禁用插件时 Obsidian 卸载插件样式表，字体声明随之移除，零残留；文件缺失时回退
+ * styles.css 的本机字体栈。族名字符串以字体文件 name 表为准（"LXGW WenKai Screen"
+ * 已解析 name 表确认；'JetBrains Mono' 为上游官方族名）。
+ */
 export default class InkstonePlugin extends Plugin implements SettingsController {
 	inkstoneSettings: InkstoneSettings = DEFAULT_SETTINGS;
 
