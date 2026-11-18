@@ -16,8 +16,9 @@ export const SCOPE_PAPER = 'inkstone-paper';
 /** body 级全局开关镜像：Live Preview 共享的基础排版以它为前提（无动效）。 */
 export const SCOPE_GLOBAL = 'inkstone-global';
 
-/** 阅读视图渲染根（post-processor 的 el 是逐块传入的，需向上定位容器）。 */
-const RENDER_ROOT_SELECTOR = '.markdown-reading-view-content, .markdown-preview-view';
+/** 阅读视图渲染根（post-processor 的 el 是逐块传入的，需向上定位容器）。
+ *  动效层（src/effects/）同样用它定位渲染根，故导出共用。 */
+export const RENDER_ROOT_SELECTOR = '.markdown-reading-view-content, .markdown-preview-view';
 
 export type ScopeHost = Plugin & { inkstoneSettings: InkstoneSettings };
 

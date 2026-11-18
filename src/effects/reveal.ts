@@ -1,0 +1,82 @@
+import { RENDER_ROOT_SELECTOR, SCOPE_ON, type ScopeHost } from '../scope';
+
+/**
+ * 滚动渐显（PLAN §8.1）：IntersectionObserver 驱动的块级淡入 + 8px 上浮，
+ * 240ms ease-out，进入视口触发一次（揭示后 unobserve，不回退）。
+ * 只在 `.inkstone` 作用域的阅读视图生效；reduced-motion 时不隐藏任何块
+ * （JS 短路不挂观察器，CSS media query 兜底）。
+ * 观察器按渲染根登记：插件卸载与视图关闭时断开，类名全部摘除（零残留）。
+ */
+
+const REVEAL_CLASS = 'inkstone-reveal';
+const REVEALED_CLASS = 'inkstone-revealed';
+
+/** 渲染根 → 该根的观察器；卸载/视图关闭时 disconnect。 */
+const observers = new Map<HTMLElement, IntersectionObserver>();
+
+const prefersReducedMotion = (): boolean =>
+	window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function onRevealEntries(entries: IntersectionObserverEntry[], observer: IntersectionObserver): void {
+	for (const entry of entries) {
+		const block = entry.target as HTMLElement;
+		if (entry.isIntersecting) {
+			// 进入视口：加揭示类触发过渡，之后不再跟踪（触发一次）
+			block.classList.add(REVEALED_CLASS);
+			observer.unobserve(block);
+		} else if (!block.isConnected) {
+			// 视图已销毁的块不再跟踪
+			observer.unobserve(block);
+		}
+	}
+}
+
+/** 视图关闭后其渲染根脱离文档：断开对应观察器，避免滞留引用。 */
+function pruneDetachedRoots(): void {
+	for (const [rootEl, observer] of observers) {
+		if (!rootEl.isConnected) {
+			observer.disconnect();
+			observers.delete(rootEl);
+		}
+	}
+}
+
+export function registerRevealEffect(plugin: ScopeHost): void {
+	plugin.registerMarkdownPostProcessor((el) => {
+		const rootEl = el.closest(RENDER_ROOT_SELECTOR) ?? el;
+		if (!rootEl.instanceOf(HTMLElement)) return;
+		if (!rootEl.classList.contains(SCOPE_ON)) return;
+		if (!plugin.inkstoneSettings.revealEnabled) return;
+		if (prefersReducedMotion()) return;
+
+		let observer = observers.get(rootEl);
+		if (!observer) {
+			observer = new IntersectionObserver(onRevealEntries, { threshold: 0 });
+			observers.set(rootEl, observer);
+		}
+
+		// 以渲染块的顶层子元素为单位做块级渐显；空壳容器则取自身
+		const blocks = el.children.length > 0 ? Array.from(el.children) : [el];
+		for (const block of blocks) {
+			if (!block.instanceOf(HTMLElement)) continue;
+			// 已登记或已揭示的块跳过（post-processor 可能重复回调，保证幂等）
+			if (block.classList.contains(REVEAL_CLASS) || block.classList.contains(REVEALED_CLASS)) {
+				continue;
+			}
+			block.classList.add(REVEAL_CLASS);
+			observer.observe(block);
+		}
+	});
+
+	plugin.registerEvent(plugin.app.workspace.on('layout-change', pruneDetachedRoots));
+}
+
+/** 插件卸载：断开全部观察器并摘除类名，恢复原文档外观。 */
+export function unloadRevealEffect(): void {
+	for (const observer of observers.values()) observer.disconnect();
+	observers.clear();
+	const nodes = document.querySelectorAll(`.${REVEAL_CLASS}, .${REVEALED_CLASS}`);
+	for (const node of Array.from(nodes)) {
+		node.classList.remove(REVEAL_CLASS, REVEALED_CLASS);
+	}
+}

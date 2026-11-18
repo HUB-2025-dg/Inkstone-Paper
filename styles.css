@@ -2,7 +2,8 @@
    Inkstone 纸研 — Kami 排版层
    令牌与组件规格源：tw93/kami（MIT）references/design.md §1-§4、CHEATSHEET.md。
    分段：① 令牌（亮/暗/白纸变体）② 阅读域排版（标题阶梯/正文）③ §7 组件映射
-   ④ Live Preview 共享层（只共享令牌与基础排版，无动效）⑤ reduced-motion。
+   ④ Live Preview 共享层（只共享令牌与基础排版，无动效）⑤ 动效层（阅读域）
+   ⑥ reduced-motion。
    作用域：阅读模式由 scope.ts 挂 `.inkstone`；Live Preview 以 body 上的
    `.inkstone-global`（全局开关镜像）为前提。
    约束：tag 一律实底 hex（禁 rgba）；无装饰性线条（线只做分隔/状态/关系）；
@@ -576,12 +577,80 @@ body.inkstone-global .markdown-source-view.mod-cm6 .cm-highlight {
 	border-radius: 2px;
 }
 
-/* ----------------------------------------------- ⑤ reduced-motion ----- */
-/* 排版层唯一的动效是链接下划线生长与勾选框底色过渡；其余动效（步骤 5）
-   统一走 IntersectionObserver 等实现，并同样尊重此查询 */
+/* ------------------------------------------------ ⑤ 动效层：阅读域 ----- */
+/* 全部动效只在 .inkstone 作用域生效（ADR-0003：Live Preview 无动效）。
+   呼吸类时长 150-200ms，渐显 240ms，聚焦过渡 320ms，统一 ease-out；
+   hover 边线属状态反馈（线只做分隔/状态/关系）。reveal/focus/typewriter
+   由 JS 挂类驱动（src/effects/），CSS 只定义状态与过渡。 */
+/* 滚动渐显：块级淡入 + 8px 上浮，进入视口触发一次（reveal.ts 挂 revealed 类）。
+   过渡声明为「渐显 + 呼吸」的并集：级联对同一元素只取一条 transition 声明，
+   使同为渐显块的 callout/pre 卡片 hover 时仍各自按档计时 */
+.inkstone .inkstone-reveal {
+	opacity: 0;
+	transform: translateY(8px);
+	transition:
+		opacity 240ms ease-out,
+		transform 240ms ease-out,
+		box-shadow 160ms ease-out;
+}
+.inkstone .inkstone-reveal.inkstone-revealed {
+	opacity: 1;
+	transform: translateY(0);
+}
+/* 聚焦阅读：中带外段落退灰至 stone 档，跨带 320ms（focus.ts 挂 .inkstone-focus 与 dim 类） */
+.inkstone.inkstone-focus p {
+	transition:
+		color 320ms ease-out,
+		opacity 240ms ease-out,
+		transform 240ms ease-out,
+		box-shadow 160ms ease-out;
+}
+.inkstone.inkstone-focus p.inkstone-focus-dim {
+	color: var(--ik-stone);
+}
+/* 打字机：逐字 span 以 hide 类隐藏，JS 按设置速度依序摘除显形（typewriter.ts）；
+   无逐字过渡，打字节奏由速度控制 */
+.inkstone .inkstone-tw-hide {
+	opacity: 0;
+}
+/* 交互呼吸（纯 CSS hover）：卡片 1px 起伏 + 边线加深（透明 → line，静止时仍无边框观感）。
+   hover 规则带 .inkstone-revealed 组合选择器压过已揭示块的 transform（同特异性按源序取胜） */
+.inkstone .callout,
+.inkstone pre {
+	box-shadow: inset 0 0 0 1px transparent;
+	transition:
+		transform 160ms ease-out,
+		box-shadow 160ms ease-out;
+}
+.inkstone pre:hover,
+.inkstone .callout:hover,
+.inkstone .inkstone-reveal.inkstone-revealed:hover {
+	transform: translateY(-1px);
+	box-shadow: inset 0 0 0 1px var(--ik-line);
+}
+
+/* --------------------------------------------- ⑥ reduced-motion ----- */
+/* 用户偏好减少动效：呼吸/渐显/聚焦/打字机统一退化为静态
+   （JS 层同步短路：不挂观察器、不启动打字机会话） */
 @media (prefers-reduced-motion: reduce) {
 	.inkstone a,
-	.inkstone input[type='checkbox'].task-list-item-checkbox {
+	.inkstone input[type='checkbox'].task-list-item-checkbox,
+	.inkstone .callout,
+	.inkstone pre,
+	.inkstone .inkstone-reveal,
+	.inkstone.inkstone-focus p {
 		transition: none;
+	}
+	.inkstone .inkstone-reveal {
+		opacity: 1;
+		transform: none;
+	}
+	.inkstone .inkstone-tw-hide {
+		opacity: 1;
+	}
+	.inkstone pre:hover,
+	.inkstone .callout:hover,
+	.inkstone .inkstone-reveal.inkstone-revealed:hover {
+		transform: none;
 	}
 }
