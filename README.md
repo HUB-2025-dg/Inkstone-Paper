@@ -4,14 +4,14 @@
 
 插件 id `inkstone`，社区目录显示名 `Inkstone Paper`（中文名「纸研」），当前版本 1.0.1，最低要求 Obsidian 1.5.0。
 
-v1.0.1 已装配到验收库 spark-cache 的 `.obsidian/plugins/inkstone/`，重启 Obsidian 后生效。
+v1.0.1 已装配到本地验收库的 `.obsidian/plugins/inkstone/`，重启 Obsidian 后生效。
 
 ## 功能概览
 
 **Kami 排版层**（阅读模式完整生效）
 
 - 全套 markdown 组件映射：标题字号阶梯、正文 1.55 行高与默认 700px 版心、引用（olive 色无边条）、表格暖色发丝线、行内代码暖底、ivory 代码卡、实底标签、callout 全类型重映射、发丝分隔线、图片 8px 圆角加 alt 题注、`==高亮==`、极简任务列表勾选框
-- callout 分组：note/abstract 与 question 族呈 ivory 卡，info/tip/success 族呈 brand-tint 浅蓝底，warning/caution/danger 族呈 breaking 双色（唯一语义警示），quote/cite 归入引用样式
+- callout：排版层级沿用 Kami（无边框、圆角、内边距、字重 500），**背景交还 Obsidian 默认**（`rgba(var(--callout-color), 0.1)`，随主题与类型自动取色）；warning 族标题与图标用暖棕警示色，quote/cite 归入无填充引用
 - 油墨蓝是唯一强调色；亮暗两套令牌（暗色为 Kami deep-dark 系），另有白纸打印变体
 - 打包两款 OFL 字体：霞鹜文楷屏幕版（LXGW WenKai Screen）+ JetBrains Mono，文件缺失时回退本机字体栈
 

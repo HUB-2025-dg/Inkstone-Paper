@@ -27,7 +27,7 @@ Inkstone Paper（纸研）：自带 Kami 排版层与克制动效的 Obsidian �
 | 8 | 模式 | 阅读模式完整；Live Preview 只生效排版令牌，无动效（ADR-0003） |
 | 9 | 命名 | Inkstone Paper（纸研），id `inkstone`（ADR-0004） |
 | 10 | 节奏 | v1.0 一次做完；终点 = lint 0 错 + 构建通过 + 验收清单全过 + README/manifest 齐备 |
-| 11 | 验收 | 真实 vault `D:\13757\Documents\学习\spark-cache` |
+| 11 | 验收 | 真实 vault（本地验收库，路径不入库） |
 | 12 | 默认项 | 明暗双模式（Kami deep-dark 令牌）；v1 不动工作区外壳 |
 
 ## 3. 非目标
@@ -152,7 +152,7 @@ D:\Obsidian-Kami\
 - [ ] 明暗双模式令牌正确
 - [ ] 禁用插件后笔记零残留恢复原状
 - [ ] 长笔记（300+ 段）滚动不卡；控制台无报错（默认只允许 error 级）
-- [x] README 双语、manifest 完整（author 已由占位 "13757" 改为 git 署名 "HUB"，发布前用户可自行改定）
+- [x] README 双语、manifest 完整（author 已由占位名改为 git 署名 "HUB"，发布前用户可自行改定）
 - [ ] PDF 导出复核：导出走 print 媒体查询，渐显/打字机隐藏态强制呈现，无半透明空白块（复审第 1 轮 §4）
 - [x] manifest name 使用 ASCII 的 "Inkstone Paper"（Obsidian Manifest 规范要求 Basic Latin only；已确认社区目录无同名插件/主题；中文名「纸研」保留在 README 与文档，复审第 2 轮 §2）
 
@@ -194,7 +194,7 @@ D:\Obsidian-Kami\
 
 ### v1.0.1 验收清单
 
-（第 1 项已于复审第 1 轮修复时完成，复审第 2 轮复验：lint/build 全绿。装配目录 `D:\13757\Documents\学习\spark-cache\.obsidian\plugins\inkstone`，main.js / styles.css / manifest.json 与仓库 md5 逐文件一致。其余各项为人工目检，需在 Obsidian 中重载插件或重启后勾选。）
+（第 1 项已于复审第 1 轮修复时完成，复审第 2 轮复验：lint/build 全绿。装配目录为本地验收库的 `.obsidian/plugins/inkstone`，main.js / styles.css / manifest.json 与仓库 md5 逐文件一致。其余各项为人工目检，需在 Obsidian 中重载插件或重启后勾选。）
 
 - [x] `npm run lint` + `npm run build` 全绿；产物装配 spark-cache 验收库（md5 逐文件比对）
 - [ ] 2026-11-15 / 2026-11-16 阅读视图均生效；阅读与编辑模式字号一致；切标签、重开 Obsidian 立即正确
