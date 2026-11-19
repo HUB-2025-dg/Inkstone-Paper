@@ -13,6 +13,7 @@ import {
 	clearBodyOverrides,
 	clearScopeClasses,
 	registerScopePostProcessor,
+	syncScopeClasses,
 } from './scope';
 import { registerRevealEffect, unloadRevealEffect } from './effects/reveal';
 import { registerFocusEffect, unloadFocusEffect } from './effects/focus';
@@ -34,6 +35,10 @@ import { registerTypewriterCommand, unloadTypewriterEffect } from './effects/typ
 /** 落盘去抖窗口（ms）：滑杆连续 onChange 只在停顿后写一次 data.json（复审第 1 轮 §1）。 */
 const SAVE_DEBOUNCE_MS = 400;
 
+/** 作用域同步去抖窗口（ms）：layout-change / active-leaf-change 在切标签、
+ *  分屏、开合侧栏时会成串触发，合并为停顿后一次重算（PLAN §14 改动项 B）。 */
+const SCOPE_SYNC_DEBOUNCE_MS = 100;
+
 /** 变更后需要重渲染阅读视图的设置键：作用域类（全局开关/暗色门控/纸张）与
  *  观察器附着（效果总开关/渐显/聚焦）随渲染解析；其余设置全部经 body 类与
  *  CSS 变量即时生效，无需重渲染（styles.css ①⑦，复审第 1 轮 §1）。 */
@@ -53,26 +58,46 @@ export default class InkstonePlugin extends Plugin implements SettingsController
 	private lastScopeSignature: string | null = null;
 	/** 去抖落盘计时器句柄（window.setTimeout 返回 number）。 */
 	private saveTimer: number | null = null;
+	/** 去抖作用域同步计时器句柄。 */
+	private scopeSyncTimer: number | null = null;
+	/** 卸载标记：`onLayoutReady` 回调无法注销，用它短路卸载后才到达的回调。 */
+	private disposed = false;
 
 	override async onload(): Promise<void> {
 		await loadSettings(this);
-		this.refreshRuntime();
+		// 先注册渲染管线与动效层（PLAN §8）：refreshRuntime 的首轮重渲染必须
+		// 发生在 post-processor 注册之后，否则那次渲染用不上本插件的处理器
 		registerScopePostProcessor(this);
-		// 动效层（PLAN §8）：均只在阅读域 .inkstone 作用域内生效（ADR-0003）
 		registerRevealEffect(this);
 		registerFocusEffect(this);
 		registerTypewriterCommand(this);
 		// 设置面板（PLAN §10 步骤 6）
 		this.addSettingTab(new InkstoneSettingTab(this.app, this));
+		// 去抖计时器随插件卸载取消（registerEvent 只管事件，setTimeout 需显式登记）
+		this.register(() => this.cancelScopeSync());
+		// 布局恢复完成后再同步一次：onload 时工作区常为空，已还原的标签页在此补类；
+		// onLayoutReady 无注销句柄，用 disposed 短路（PLAN §14 B）
+		this.app.workspace.onLayoutReady(() => {
+			if (!this.disposed) this.scheduleScopeSync();
+		});
 		// 主题切换等 CSS 变更会改变暗色门控的判定：重算 body 作用域并重渲染阅读视图
 		this.registerEvent(this.app.workspace.on('css-change', () => this.refreshRuntime(true)));
 		// 弹窗窗口有独立 body/document（复审第 1 轮 §5）：新弹窗打开与布局变化时
-		// 重铺 body 级镜像；作用域签名未变化，不会触发阅读视图重渲染
+		// 重铺 body 级镜像并同步作用域；作用域签名未变化，不会触发阅读视图重渲染
 		this.registerEvent(this.app.workspace.on('window-open', () => this.refreshRuntime()));
-		this.registerEvent(this.app.workspace.on('layout-change', () => this.refreshRuntime()));
+		// 切标签 / 分屏 / 布局变化：视图与文件绑定改变或阅读根重建，去抖后重同步
+		this.registerEvent(this.app.workspace.on('layout-change', () => this.scheduleScopeSync()));
+		this.registerEvent(
+			this.app.workspace.on('active-leaf-change', () => this.scheduleScopeSync()),
+		);
+		// 立即重算一次：body 镜像 + 排版覆盖 + 阅读域作用域同步（含首轮重渲染）
+		this.refreshRuntime();
 	}
 
 	override onunload(): void {
+		// 先停同步：避免卸载清理后残留的去抖回调把作用域类重新挂回去
+		this.disposed = true;
+		this.cancelScopeSync();
 		// 去抖中的落盘立即补写（禁用插件时保住最后一次设置变更）
 		if (this.saveTimer !== null) {
 			window.clearTimeout(this.saveTimer);
@@ -96,23 +121,49 @@ export default class InkstonePlugin extends Plugin implements SettingsController
 	/**
 	 * 重算 body 级作用域与排版覆盖（主窗口 + 弹窗逐窗口执行）：字体/缩放/
 	 * 栏宽经 CSS 变量与类即时生效，无需重渲染；关停中的动效立即清理观察器
-	 * 与残留类。仅当作用域签名（RERENDER_KEYS）相对上次变化时重渲染打开的
-	 * 阅读视图，使作用域/纸张/暗色门控按最新设置重新解析；forceRerender
-	 * 跳过签名比对（css-change 等环境性变更）。
+	 * 与残留类。随后按 frontmatter 幂等同步每个阅读视图的作用域类——这一步
+	 * 与渲染时机无关，是「已渲染但漏挂」路径的权威修正（PLAN §14 B）。
+	 * 仅当作用域签名（RERENDER_KEYS）相对上次变化时重渲染打开的阅读视图，
+	 * 使纸张/暗色门控与观察器附着按最新设置重新解析；forceRerender 跳过签名
+	 * 比对（css-change 等环境性变更）。首轮（lastScopeSignature 为 null）不再
+	 * 跳过：签名比对自然为「已变化」，打开的阅读视图各重渲染一次，让动效
+	 * 观察器在插件重新启用时立即附着；冷启动时布局尚未恢复、无 markdown 叶子，
+	 * 这次重渲染是空操作，真正补类由 onLayoutReady 的同步完成。切标签与
+	 * 布局变化不会重渲染（签名未变），避免重复开销。
 	 */
 	private refreshRuntime(forceRerender = false): void {
 		applyGlobalScope(this);
 		applyTypographyOverrides(this);
+		syncScopeClasses(this);
 		const off = !this.inkstoneSettings.enabled;
 		const { effectsEnabled, revealEnabled, focusEnabled, typewriterEnabled } = this.inkstoneSettings;
 		if (off || !effectsEnabled || !revealEnabled) unloadRevealEffect(this);
 		if (off || !effectsEnabled || !focusEnabled) unloadFocusEffect(this);
 		if (off || !effectsEnabled || !typewriterEnabled) unloadTypewriterEffect();
 		const signature = RERENDER_KEYS.map((key) => String(this.inkstoneSettings[key])).join('|');
-		if (forceRerender || (this.lastScopeSignature !== null && this.lastScopeSignature !== signature)) {
+		if (forceRerender || this.lastScopeSignature !== signature) {
 			this.rerenderReadingViews();
 		}
 		this.lastScopeSignature = signature;
+	}
+
+	/** 去抖作用域重算：合并 layout-change / active-leaf-change 的成串触发。 */
+	private scheduleScopeSync(): void {
+		if (this.disposed) return;
+		if (this.scopeSyncTimer !== null) window.clearTimeout(this.scopeSyncTimer);
+		this.scopeSyncTimer = window.setTimeout(() => {
+			this.scopeSyncTimer = null;
+			if (this.disposed) return;
+			this.refreshRuntime();
+		}, SCOPE_SYNC_DEBOUNCE_MS);
+	}
+
+	/** 取消待执行的同步（卸载与重新登记时调用）。 */
+	private cancelScopeSync(): void {
+		if (this.scopeSyncTimer !== null) {
+			window.clearTimeout(this.scopeSyncTimer);
+			this.scopeSyncTimer = null;
+		}
 	}
 
 	/** 去抖落盘：连续变更合并为停顿后一次 data.json 写入。 */
