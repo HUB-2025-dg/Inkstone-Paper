@@ -74,17 +74,13 @@ body {
 	--ik-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', Consolas, Monaco,
 		'TsangerJinKai02', 'Source Han Serif SC', monospace;
 
-	/* 屏显字号阶梯：pt × 1.33，12px 下限，所有字号落在阶梯上（ladder discipline）。
-	   整条阶梯乘 --ik-scale（字号缩放设置，scope.ts 写 body 内联变量，默认 1；
-	   用户显式缩放可越过默认阶梯的 12px 下限） */
+	/* 字号：完全跟随 Obsidian（--font-text-size 由「设置 → 外观 → 字体大小」写入），
+	   不自建 px 阶梯。--ik-scale 是 Obsidian 字号倍率（fontScale，100% = 1，
+	   scope.ts 写 body 内联变量）；阅读域渲染根与 LP .cm-content 以
+	   calc(var(--font-text-size) * var(--ik-scale)) 为 1em 基准，标题与小号
+	   文字全部按 em 相对缩放（kami 层级：display 3.6 / h1 2.2 / h2 1.6 /
+	   h3 1.3 / h4 1.1 / label 0.9）。 */
 	--ik-scale: 1;
-	--ik-size-display: calc(48px * var(--ik-scale)); /* 36pt：inline title */
-	--ik-size-h1: calc(29px * var(--ik-scale));      /* 22pt */
-	--ik-size-h2: calc(21px * var(--ik-scale));      /* 16pt */
-	--ik-size-h3: calc(17px * var(--ik-scale));      /* 13pt */
-	--ik-size-h4: calc(15px * var(--ik-scale));      /* 11pt */
-	--ik-size-body: calc(13px * var(--ik-scale));    /* 10pt */
-	--ik-size-label: calc(12px * var(--ik-scale));   /* 9pt：h5/h6、题注、标签 */
 
 	/* 间距（4pt 基，屏 px） */
 	--ik-space-xs: 3px;
@@ -131,11 +127,14 @@ body.theme-dark {
 
 /* ------------------------------------------------ ② 阅读域：基础排版 -- */
 
-/* 暖纸页底 + 生效字体（默认衬线）正文 + 版心 */
+/* 暖纸页底 + 生效字体（默认衬线）正文 + 版心 + 字号基准 */
 .inkstone {
 	background: var(--ik-parchment);
 	color: var(--ik-near-black);
 	font-family: var(--ik-font);
+	/* 字号完全跟随 Obsidian：正文基准 = --font-text-size × 字号倍率；
+	   标题与小号文字在此 1em 基准上按 em 缩放（调节点只有 Obsidian 字号与倍率） */
+	font-size: calc(var(--font-text-size) * var(--ik-scale));
 	--file-line-width: var(--ik-measure);
 	/* 代码块高亮：只重定向 Obsidian 语法变量到 Kami 暖色系，保留其高亮逻辑 */
 	--code-background: var(--ik-ivory);
@@ -151,10 +150,17 @@ body.theme-dark {
 	--code-value: var(--ik-dark-warm);
 	--code-important: var(--ik-brand);
 }
+/* 字号基准成对钉死：Obsidian 的 `.markdown-preview-view` 自带 font-size 规则，
+   且作用域类可能挂在它的祖先 `.markdown-reading-view` 上；两种挂法都保证
+   1em 基准 = Obsidian 字号 × 倍率（嵌入内容同基准） */
+.inkstone .markdown-preview-view,
+.markdown-preview-view.inkstone {
+	font-size: calc(var(--font-text-size) * var(--ik-scale));
+}
 
 /* inline title：Display 档，中文 display 给光学字距（design.md §2 letter-spacing） */
 .inkstone .inline-title {
-	font-size: var(--ik-size-display);
+	font-size: 3.6em;
 	font-weight: 500;
 	line-height: 1.2;
 	letter-spacing: 0.02em;
@@ -173,34 +179,34 @@ body.theme-dark {
 	font-weight: 500;
 }
 .inkstone h1 {
-	font-size: var(--ik-size-h1);
+	font-size: 2.2em;
 	line-height: 1.2;
 	margin: var(--ik-space-2xl) 0 var(--ik-space-md);
 }
 .inkstone h2 {
-	font-size: var(--ik-size-h2);
+	font-size: 1.6em;
 	line-height: 1.25;
 	margin: var(--ik-space-xl) 0 var(--ik-space-md);
 }
 .inkstone h3 {
-	font-size: var(--ik-size-h3);
+	font-size: 1.3em;
 	line-height: 1.3;
 	margin: var(--ik-space-lg) 0 var(--ik-space-md);
 }
 .inkstone h4 {
-	font-size: var(--ik-size-h4);
+	font-size: 1.1em;
 	line-height: 1.3;
 	margin: var(--ik-space-lg) 0 var(--ik-space-sm);
 }
 /* h5/h6 落在 label 档；h6 再降一色阶区分 */
 .inkstone h5 {
-	font-size: var(--ik-size-label);
+	font-size: max(12px, 0.9em);
 	line-height: 1.35;
 	letter-spacing: 0.015em;
 	margin: var(--ik-space-lg) 0 var(--ik-space-sm);
 }
 .inkstone h6 {
-	font-size: var(--ik-size-label);
+	font-size: max(12px, 0.9em);
 	line-height: 1.35;
 	letter-spacing: 0.015em;
 	color: var(--ik-stone);
@@ -208,9 +214,9 @@ body.theme-dark {
 }
 
 /* 正文：阅读档 1.55 行高（PLAN §7）；
-   中文正文配 TsangerJinKai 给 0.1-0.2pt 字距（invariant 7，13px × 0.015 ≈ 0.15pt） */
+   中文正文配 TsangerJinKai 给 0.1-0.2pt 字距（invariant 7，0.015em：16px 下 ≈ 0.18pt） */
 .inkstone p {
-	font-size: var(--ik-size-body);
+	font-size: 1em;
 	line-height: 1.55;
 	letter-spacing: 0.015em;
 	color: var(--ik-near-black);
@@ -230,7 +236,7 @@ body.theme-dark {
 .inkstone ul,
 .inkstone ol {
 	padding-left: 21px;
-	font-size: var(--ik-size-body);
+	font-size: 1em;
 	line-height: 1.55;
 	letter-spacing: 0.015em;
 }
@@ -257,7 +263,7 @@ body.theme-dark {
 	border: none;
 	background: transparent;
 	color: var(--ik-olive);
-	font-size: var(--ik-size-body);
+	font-size: 1em;
 	line-height: 1.55;
 }
 .inkstone blockquote p {
@@ -270,7 +276,7 @@ body.theme-dark {
 .inkstone table {
 	width: 100%;
 	border-collapse: collapse;
-	font-size: var(--ik-size-body);
+	font-size: 1em;
 	margin: var(--ik-space-lg) 0;
 	break-inside: avoid;
 	background: transparent;
@@ -317,7 +323,7 @@ body.theme-dark {
 	border-radius: 5px;
 	padding: 13px 18px;
 	font-family: var(--ik-mono);
-	font-size: var(--ik-size-label);
+	font-size: max(12px, 0.9em);
 	line-height: 1.5;
 }
 .inkstone pre code {
@@ -340,7 +346,7 @@ body.theme-dark {
 	border: none;
 	text-decoration: none;
 	background-image: none;
-	font-size: var(--ik-size-label);
+	font-size: max(12px, 0.9em);
 	font-weight: 500;
 	line-height: inherit;
 	padding: 1px 6px;
@@ -360,14 +366,14 @@ body.theme-dark {
 }
 .inkstone .callout-title {
 	color: var(--ik-near-black);
-	font-size: var(--ik-size-body);
+	font-size: 1em;
 	font-weight: 500;
 }
 .inkstone .callout-icon {
 	color: var(--ik-olive);
 }
 .inkstone .callout-content {
-	font-size: var(--ik-size-body);
+	font-size: 1em;
 	line-height: 1.55;
 	color: var(--ik-near-black);
 }
@@ -462,14 +468,14 @@ body.theme-dark {
 }
 
 /* img：8px 圆角（屏显块级圆角档）；alt 题注由 mapping.ts 生成节点，
-   这里只负责它的排版：stone 色、12px、1.45 行高 */
+   这里只负责它的排版：stone 色、label 档（0.9em，12px 下限）、1.45 行高 */
 .inkstone img {
 	border-radius: 8px;
 }
 .inkstone .inkstone-img-caption {
 	display: block;
 	color: var(--ik-stone);
-	font-size: var(--ik-size-label);
+	font-size: max(12px, 0.9em);
 	line-height: 1.45;
 	margin-top: var(--ik-space-xs);
 	text-align: center;
@@ -549,8 +555,16 @@ body.theme-dark {
 }
 
 /* --------------------------------- ④ Live Preview 共享（无动效） ------- */
-/* 只共享：令牌（body 级已全量生效）+ 字体族/行高 + 标题阶梯 +
-   行内代码/tag/mark 暖底。交互语义色（链接）与一切过渡动画留给阅读域。 */
+/* 只共享：令牌（body 级已全量生效）+ 字号基准（Obsidian 正文 × 倍率）+
+   字体族/行高 + 标题阶梯 + 行内代码/tag/mark 暖底。交互语义色（链接）与
+   一切过渡动画留给阅读域。 */
+/* 字号基座与阅读域同源：.cm-content 显式钉住 calc(正文 × 倍率)；
+   .cm-sizer 同时钉住，使 .inline-title（其子节点）的 em 阶梯共享同一基准 */
+
+body.inkstone-global .markdown-source-view.mod-cm6 .cm-sizer,
+body.inkstone-global .markdown-source-view.mod-cm6 .cm-content {
+	font-size: calc(var(--font-text-size) * var(--ik-scale));
+}
 
 body.inkstone-global .markdown-source-view.mod-cm6 .cm-scroller {
 	font-family: var(--ik-font);
@@ -558,7 +572,7 @@ body.inkstone-global .markdown-source-view.mod-cm6 .cm-scroller {
 }
 
 body.inkstone-global .markdown-source-view .inline-title {
-	font-size: var(--ik-size-display);
+	font-size: 3.6em;
 	font-weight: 500;
 	line-height: 1.2;
 	letter-spacing: 0.02em;
@@ -570,28 +584,28 @@ body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header {
 	color: var(--ik-near-black);
 }
 body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-1 {
-	font-size: var(--ik-size-h1);
+	font-size: 2.2em;
 	line-height: 1.25;
 }
 body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-2 {
-	font-size: var(--ik-size-h2);
+	font-size: 1.6em;
 	line-height: 1.25;
 }
 body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-3 {
-	font-size: var(--ik-size-h3);
+	font-size: 1.3em;
 	line-height: 1.3;
 }
 body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-4 {
-	font-size: var(--ik-size-h4);
+	font-size: 1.1em;
 	line-height: 1.3;
 }
 body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-5 {
-	font-size: var(--ik-size-label);
+	font-size: max(12px, 0.9em);
 	line-height: 1.35;
 	letter-spacing: 0.015em;
 }
 body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-6 {
-	font-size: var(--ik-size-label);
+	font-size: max(12px, 0.9em);
 	line-height: 1.35;
 	letter-spacing: 0.015em;
 	color: var(--ik-stone);

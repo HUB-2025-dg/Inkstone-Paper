@@ -111,7 +111,7 @@ D:\Obsidian-Kami\
 
 ## 9. 设置项
 
-全局开关；纸张样式（暖纸默认 / 白纸打印变体）；暗色下是否生效；字体族覆盖；字号缩放；栏宽（默认 700px）；效果总开关 + 四项独立开关；打字机速度。
+全局开关；纸张样式（暖纸默认 / 白纸打印变体）；暗色下是否生效；字体族覆盖；字号缩放（v1.0.1 起为 Obsidian 字号倍率，100% = 完全跟随 Obsidian）；栏宽（默认 700px）；界面语言（v1.0.1 新增：auto / 中文 / English，默认跟随系统，见 §14）；效果总开关 + 四项独立开关；打字机速度。
 
 ## 10. 实施步骤与状态
 
@@ -152,3 +152,61 @@ D:\Obsidian-Kami\
 - `D:/Obsidian-Kami-references/obsidian-releases-master/obsidian-releases-master/`（审核规范 community-plugins.json）、`D:/Obsidian-Kami-references/eslint-plugin-master/eslint-plugin-master/`（规则源码）
 - Kami Reader 主题（社区既有静态移植，互补参照）：github.com/KKenny0/obsidian-kami
 - 审核规范：docs.obsidian.md/Plugins/Releasing/Plugin+guidelines
+
+## 14. v1.0.1 实测反馈修复（2026-11-19 立项，方案经 grill 三轮收敛）
+
+用户装入验收库（spark-cache）实测反馈两类问题：①阅读视图字体不稳定——部分笔记（2026-11-16）完全无效果、部分（2026-11-15）生效但正文偏小，编辑/源码模式始终稳定，切模式/重开标签不恢复；②设置页全英文。
+
+### 根因（代码定位）
+
+- **不稳定是结构性的**：阅读域排版全依赖 post-processor 渲染时挂 `.inkstone` 作用域类（src/scope.ts:144-162）。插件加载前已渲染的视图、`RENDER_ROOT_SELECTOR` 未匹配的容器永远漏挂；main.ts:112 首次加载跳过重渲染。实测库 data.json 为空（全默认值），暗色门控已排除。
+- **偏小是阶梯设计**：阅读域挂 Kami 印刷 px 字号阶梯（正文 13px），Live Preview 共享层只改字体族不改字号（styles.css:555）→ 编辑 16px / 阅读 13px。
+
+### 已确认决策
+
+- 字号完全跟随 Obsidian 规则（不自创阶梯）；「字号缩放」保留为 Obsidian 字号倍率（100% = 完全跟随）。
+- 界面语言默认跟随 Obsidian/系统（navigator.language），可手动 auto/中文/English。
+- 三项一起出 v1.0.1。
+
+### 改动项
+
+- [x] **A. 字号跟随 Obsidian**（styles.css）：删除 Kami px 字号阶梯定义及全部 font-size 覆盖，阅读域继承 `--font-text-size` + em 阶梯；保留字体族/颜色/字重 500/行高/字距/间距/背景/栏宽；`--ik-scale` 作为倍率统一作用于阅读域渲染根与 LP `.cm-content`（`calc(var(--font-text-size) * var(--ik-scale))`），两模式同步缩放
+- [ ] **B. 阅读域作用域稳定性**（scope.ts + main.ts）：实施首步先在验收库钉死漏挂路径（渲染根 DOM 诊断，结论补记本节）；新增 `syncScopeClasses`（metadataCache frontmatter → 复用 resolve/applyScopeClasses 幂等直挂，选择器扩 `.markdown-reading-view`），onload / active-leaf-change / layout-change / css-change 触发（去抖 ~100ms）；移除首跳守卫，首次加载也重渲染阅读视图
+- [ ] **C. 中英双语**（settings.ts + effects）：新增 `language` 设置（auto/zh/en）+ LABEL/DESC 双语字典 + `t()` 取词；下拉选项 addOptions 本地化显示名；覆盖设置页全部文案、命令名（打字机）、Notice
+- [ ] **D. 文档与版本**：本节随实施勾选；§9 同步；manifest/versions → 1.0.1
+
+### v1.0.1 验收清单
+
+- [ ] `npm run lint` + `npm run build` 全绿；产物装配 spark-cache 验收库（md5 逐文件比对）
+- [ ] 2026-11-15 / 2026-11-16 阅读视图均生效；阅读与编辑模式字号一致；切标签、重开 Obsidian 立即正确
+- [ ] `inkstone: false` 单篇禁用零残留；暗色门控行为不回归
+- [ ] auto 档中文系统显示中文；手动切 English 设置页即时变英文
+- [ ] 缩放 100% 与 Obsidian 原生字号一致；非 100% 两模式同步缩放
+- [ ] 明暗两主题各验一遍
+
+### 诊断结论（v1.0.1 实施首步）
+
+**实测事实（2026-11-19，spark-cache；Obsidian 1.15.0，取自 `resources/obsidian.asar/package.json`）**
+
+- 装配目录 `.obsidian/plugins/inkstone/`：`main.js`（03:21）、`styles.css`（03:09）、`manifest.json`（version 0.1.0）、`fonts/`；**无 data.json**（`cat` 报 No such file），行为等价全默认值（settings.ts:163-179）。仓库与装配的 main.js/styles.css md5 一致（35517b57…/017e1f68…），实测对象即当前构建。
+- `.obsidian/` 无 `themes/`、无 `snippets/`；`appearance.json` 仅 `theme: system`（无 cssTheme / enabledCssSnippets）；`app.json`：`defaultViewMode: preview`、`readableLineLength: false`。
+- `journal/2026/11/2026-11-15.md` 与 `2026-11-16.md` frontmatter 同构（date/describe/thoughts），均无 `inkstone` / `inkstone-paper` / `cssclasses`；全库仅「Inkstone 验收/关闭样例.md」有 `inkstone: false`。两篇差异不能由 frontmatter 解释。
+- workspace 快照三页：2026-11-15（active）、2026-11-17、2026-11-16，无显式 mode → 走 preview。
+
+**漏挂主因（新证据，细化本节「根因」）**
+
+Obsidian 1.15.0 阅读视图按 section 分片渲染：section 的 `el` 由 `createDiv()` 创建（游离），`onRender()` 先 `f.render()` → `this.owner.postProcess(f,…)`，之后才 `setChildrenInPlace` 上树，而 `postProcess` 传入的正是 `el: e.el`。因此 post-processor 运行时 `el.closest(...)` 只看得到 section 子树：`src/scope.ts:148` 得 `null`，`scope.ts:149` 直接 return，`.inkstone` 从未挂上；同一原因使 reveal.ts:53 / focus.ts:52 也永不生效。
+
+- `RENDER_ROOT_SELECTOR`（scope.ts:31）首项 `.markdown-reading-view-content` 在 obsidian.asar 中 0 次出现（幻影类）；实际 DOM 链为 `.markdown-reading-view > .markdown-preview-view.markdown-rendered > .markdown-preview-sizer.markdown-preview-section > div`，嵌入为 `.markdown-embed > .markdown-embed-content > .markdown-preview-view`。
+- 只有「section 在 post-processor 之前已挂在 DOM 上」时才命中（例如插件重载 → `post-processor-change` → `rerender(!0)`，asar 证据）；此后新建/首次渲染的标签页命中不到，这是逐篇不一致的来源。
+- main.ts:112 首跳守卫使首次 `refreshRuntime()` 不重渲染；main.ts:72 的 `layout-change` 走同一守卫，切模式不修复。post-processor 对已渲染 section 不再重跑（`if(f.rendered)continue`），切回阅读模式也不补类。
+- 旧包 `?? el` 回退（232d5a3 之前的 scope.ts:111）会把类挂到 section 自身，旧状态可能残留半套样式；装配包已是移除后的版本（bundle grep 证实）。此项属推断，待运行时复核。
+
+**判定**：2026-11-16「完全无效果」= 该页在插件注册之后才首次渲染 → section 游离 → 根无类；切模式复用同一阅读 DOM → 不恢复。2026-11-15「生效但偏小」= 其根在某个「已挂载 section」批次上拿到 `.inkstone`，命中阅读档 13px（styles.css:86、212-218），而 LP 只改字体族不改字号（styles.css:555-558）→ 16px 对 13px。逐篇差异是渲染时序竞态，不是笔记属性。
+
+**B 项实施须覆盖**
+
+- `syncScopeClasses` 挂载：逐 markdown leaf 对 `.markdown-reading-view` 与 `.markdown-preview-view` 成对幂等 toggle（`.markdown-reading-view` 持久存在，MarkdownView 构造即建）；不全文盲扫 `.markdown-preview-view`（会污染 hover 预览/嵌入）。
+- 触发：`onload`、`workspace.onLayoutReady`、`active-leaf-change`、`layout-change`、`file-open`、`css-change`、`window-open`、`metadataCache.on('changed')`，去抖 ~100ms。
+- 其他必改点：scope.ts:31（去幻影类、补 `.markdown-reading-view`）；scope.ts:144-162（游离 el 需延后重跑，或 mapping/动效改由同步后的根驱动）；reveal.ts:49-55、focus.ts:48-54、typewriter.ts:44-48；main.ts:112（首跳守卫）；styles.css:135-153（`.inkstone` 背景被 `.workspace-leaf-content.is-read-mode .markdown-preview-view{background-color:var(--background-primary)}` 以 0,3,0 特异性压过，需提高特异性或改写 `--background-primary`）。
+- 附注：本库 `readableLineLength: false` → 无 `.is-readable-line-width` → `--file-line-width` 不生效，栏宽设置在阅读视图无效。
