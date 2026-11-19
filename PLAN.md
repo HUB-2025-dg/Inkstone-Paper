@@ -79,8 +79,8 @@ D:\Obsidian-Kami\
 | olive | `#504e49` | 说明文字 |
 | stone | `#6b6a64` | 三级/元数据 |
 | border / border-soft / line | `#e8e6dc` / `#e5e3d8` / `#d8d5c8` | 暖色分隔线 |
-| tag-bg / brand-tint | `#E4ECF5` / `#EEF2F7` | 标签实底 / 最浅填充 |
-| breaking-bg / breaking-fg | `#f0e0d8` / `#8b4513` | 唯一语义警示色 |
+| tag-bg | `#E4ECF5` | 标签实底 |
+| breaking-fg | `#8b4513` | 唯一语义警示色（标题/图标；v1.0.2 起 callout 背景交还 Obsidian 默认，breaking-bg / brand-tint 令牌退役） |
 
 暗色（Kami deep-dark 系）：页底 `#141413`、容器 `#1a1917`、强调 `#2D5A8A`、文字阶相应提亮。
 灰一律暖调（R≈G>B）；禁纯白页底、冷灰、第二彩色、rgba 标签底、装饰性线条、斜体。
@@ -96,7 +96,7 @@ D:\Obsidian-Kami\
 | inline code | `#f0eee6` 暖底 |
 | code block | ivory 代码卡 + JetBrains Mono，保留 Obsidian 高亮但调成暖色系 |
 | #tag | .tag 实底 `#E4ECF5` + brand 字色 |
-| callout | 全类型重映射：note/abstract→ivory 卡；info→brand-tint；tip→quiet fill；warning/caution→breaking 双色（唯一语义色）；quote→.quote |
+| callout | 排版层级沿用 Kami（无边框、圆角、内边距、字重 500）；**背景交还 Obsidian 默认**（`rgba(var(--callout-color), 0.1)`，随主题与类型自动取色）；warning 族标题/图标用 breaking-fg；quote/cite → .quote 无填充 |
 | hr | border-soft 发丝线（只做分隔） |
 | img | 8px 圆角 + alt 文本转 stone 色题注 |
 | ==mark== | warm-sand 底 + near-black 字 |

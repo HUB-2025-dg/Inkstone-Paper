@@ -55,9 +55,8 @@ body {
 	--ik-line: #d8d5c8;
 	/* 注册实底 tint（用 token，禁 rgba） */
 	--ik-tag-bg: #e4ecf5;
-	--ik-brand-tint: #eef2f7;
-	/* 唯一语义警示（breaking，注册例外） */
-	--ik-breaking-bg: #f0e0d8;
+	/* 唯一语义警示（breaking，注册例外）；背景交还 Obsidian 默认后
+	   --ik-breaking-bg 已退役，仅保留前景色（标题/图标） */
 	--ik-breaking-fg: #8b4513;
 
 	/* 字体栈：单一衬线承载全页；mono 带 CJK 回退。
@@ -111,8 +110,6 @@ body.theme-dark {
 	--ik-border-soft: #282723;
 	--ik-line: #3a3833;
 	--ik-tag-bg: #233850;
-	--ik-brand-tint: #1b2938;
-	--ik-breaking-bg: #3d2d24;
 	--ik-breaking-fg: #cf9d72;
 }
 
@@ -366,12 +363,11 @@ body.theme-dark {
 	letter-spacing: 0.5px;
 }
 
-/* callout 全类型重映射（PLAN §7）：
-   中性 → ivory 卡；info/tip/success 族 → brand-tint（quiet fill 同 token）；
-   warning/failure 族 → breaking 双色（唯一语义警示）；quote/cite → .quote。
-   卡片一律无边框、无 accent edge（design.md「Subtractive rule」）。 */
+/* callout 重映射（PLAN §7）：背景交还 Obsidian 默认
+   （`rgba(var(--callout-color), 0.1)`，随主题与 callout 类型自动取色），
+   只保留 Kami 的排版层级：无边框、圆角、内边距、字体与字重。
+   quote/cite 例外：Kami .quote 无填充（引用不是提示框）。 */
 .inkstone .callout {
-	background: var(--ik-ivory);
 	border: none;
 	border-radius: 5px;
 	padding: var(--ik-space-md) var(--ik-space-lg);
@@ -390,17 +386,7 @@ body.theme-dark {
 	color: var(--ik-near-black);
 }
 
-/* info 族（brand-tint，图标用唯一强调色小面积点睛） */
-.inkstone .callout[data-callout='info'],
-.inkstone .callout[data-callout='todo'],
-.inkstone .callout[data-callout='tip'],
-.inkstone .callout[data-callout='hint'],
-.inkstone .callout[data-callout='important'],
-.inkstone .callout[data-callout='success'],
-.inkstone .callout[data-callout='check'],
-.inkstone .callout[data-callout='done'] {
-	background: var(--ik-brand-tint);
-}
+/* info 族：图标用唯一强调色小面积点睛（背景随 Obsidian 默认） */
 .inkstone .callout[data-callout='info'] .callout-icon,
 .inkstone .callout[data-callout='todo'] .callout-icon,
 .inkstone .callout[data-callout='tip'] .callout-icon,
@@ -412,26 +398,7 @@ body.theme-dark {
 	color: var(--ik-brand);
 }
 
-/* question 族：中性 ivory（疑问不是警示） */
-.inkstone .callout[data-callout='question'],
-.inkstone .callout[data-callout='help'],
-.inkstone .callout[data-callout='faq'],
-.inkstone .callout[data-callout='example'] {
-	background: var(--ik-ivory);
-}
-
-/* warning/failure 族 → breaking 双色（唯一语义警示色，全部暖调） */
-.inkstone .callout[data-callout='warning'],
-.inkstone .callout[data-callout='caution'],
-.inkstone .callout[data-callout='attention'],
-.inkstone .callout[data-callout='failure'],
-.inkstone .callout[data-callout='fail'],
-.inkstone .callout[data-callout='missing'],
-.inkstone .callout[data-callout='danger'],
-.inkstone .callout[data-callout='error'],
-.inkstone .callout[data-callout='bug'] {
-	background: var(--ik-breaking-bg);
-}
+/* warning/failure 族：标题与图标沿用唯一语义警示色（背景随 Obsidian 默认） */
 .inkstone .callout[data-callout='warning'] .callout-title,
 .inkstone .callout[data-callout='caution'] .callout-title,
 .inkstone .callout[data-callout='attention'] .callout-title,
