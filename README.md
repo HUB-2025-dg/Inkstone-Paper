@@ -26,11 +26,11 @@
 
 ## 字号跟随 Obsidian
 
-插件不自建 px 字号阶梯。阅读视图与 Live Preview 的正文基准统一为 `calc(var(--font-text-size) * var(--ik-scale))`，即 Obsidian 外观设置中的字体大小乘以插件的字号倍率。字号缩放为 100% 时，阅读与编辑视图都等于你为 Obsidian 设定的字号；在 85% 至 125% 之间调整时，两种模式同步缩放，标题与正文的比例靠 em 阶梯保持不变。最小一档的标题、代码块与标签等小号文字保留 12px 可读下限。字体族、字重、行高、字距、颜色与栏宽仍由 Kami 排版层控制。
+插件不自建 px 字号阶梯。阅读视图与 Live Preview 的正文基准统一为 `calc(var(--font-text-size) * var(--ik-scale))`，即 Obsidian 外观设置中的字体大小乘以插件的字号倍率。字号缩放为 100% 时，阅读与编辑视图都等于你为 Obsidian 设定的字号；在 85% 至 125% 之间调整时，两种模式同步缩放，标题与正文的比例靠 em 阶梯保持不变。字体族、字重、行高、字距、颜色与栏宽仍由 Kami 排版层控制。
 
 ## 界面语言
 
-设置项「界面语言」支持自动（跟随系统）/ 中文 / English，默认自动：`navigator.language` 以 `zh` 开头显示中文，其余显示英文。设置页与提示消息即时切换；命令面板中的「播放打字机效果 / Play typewriter effect」在重启 Obsidian 后按新语言更新。
+设置项「界面语言」支持自动（跟随 Obsidian 界面语言，未设置时回退系统）/ 中文 / English，默认自动：Obsidian 界面语言以 `zh` 开头显示中文，其余显示英文。设置页与提示消息即时切换；命令面板中的「播放打字机效果 / Play typewriter effect」在重启 Obsidian 后按新语言更新。
 
 ## 安装
 
@@ -78,13 +78,13 @@ inkstone-paper: false   # 本篇用暖纸，覆盖全局的白纸设置；写 tr
 ---
 ```
 
-规则：`inkstone: false` 压过一切；`inkstone: true` 压过全局开关与暗色门控；`inkstone-paper` 双向覆盖全局纸张样式。字符串形式的 `"true"`/`"false"` 同样接受。
+规则：`inkstone: false` 压过一切（阅读与编辑视图同时停用）；`inkstone: true` 压过全局开关与暗色门控（阅读与编辑视图同时开启）；`inkstone-paper` 双向覆盖全局纸张样式（仅阅读视图）。字符串形式的 `"true"`/`"false"` 同样接受。
 
 ## 设置项
 
 | 设置项（界面原文） | 默认 | 说明 |
 | --- | --- | --- |
-| Interface language | Auto (follow system) | 自动跟随系统语言，或手动选 中文 / English；设置页即时切换，命令名重启后更新 |
+| Interface language | Auto (follow Obsidian) | 自动跟随 Obsidian 界面语言（未设置时回退系统），或手动选 中文 / English；设置页即时切换，命令名重启后更新 |
 | Enable Inkstone | 开 | 全局总开关；关闭后插件不做排版干预，frontmatter `inkstone: true` 仍可单篇开启 |
 | Active in dark mode | 开 | 暗色主题下是否生效；frontmatter 显式表达优先于本项 |
 | Paper style | Warm paper | 暖纸（Kami 默认）或白纸打印变体 |
@@ -149,9 +149,9 @@ inkstone-paper: false   # 本篇用暖纸，覆盖全局的白纸设置；写 tr
 
 **Effects** (reading mode only, all respect `prefers-reduced-motion`): scrolling reveal (fade + 8px rise, 240ms, once per block); interactive breathing (CSS hover lift and underline growth, 150-200ms); focus reading (paragraphs outside the viewport's middle band dim, off by default); typewriter (command `Play typewriter effect`, 10-120 chars/s, click or Esc to skip).
 
-**Font size follows Obsidian**: the plugin defines no px type ladder of its own. Body text in both reading view and Live Preview is `calc(var(--font-text-size) * var(--ik-scale))`, your Obsidian font size times the plugin scale. At 100% both modes match the size set in Obsidian; 85-125% scales them together, with heading ratios kept by an em ladder and a 12px floor for the smallest headings, code blocks and tags.
+**Font size follows Obsidian**: the plugin defines no px type ladder of its own. Body text in both reading view and Live Preview is `calc(var(--font-text-size) * var(--ik-scale))`, your Obsidian font size times the plugin scale. At 100% both modes match the size set in Obsidian; 85-125% scales them together, with heading ratios kept by an em ladder.
 
-**Interface language**: auto (follow the system) / 中文 / English, auto by default (`navigator.language` starting with `zh` gives Chinese, otherwise English). The settings page and notices switch instantly; command names update after restarting Obsidian.
+**Interface language**: auto (follow the Obsidian interface language, falling back to the system) / 中文 / English, auto by default (a `zh` interface gives Chinese, otherwise English). The settings page and notices switch instantly; command names update after restarting Obsidian.
 
 **Install**: copy `main.js`, `styles.css`, `manifest.json` and the `fonts/` folder into `<vault>/.obsidian/plugins/inkstone/`, then enable it in Community plugins. BRAT works once the plugin is published to a public GitHub repository.
 

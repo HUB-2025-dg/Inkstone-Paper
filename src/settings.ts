@@ -31,7 +31,7 @@ export type PaperStyle = 'warm' | 'white';
 export type FontOverride = 'default' | 'sans' | 'obsidian';
 
 export interface InkstoneSettings {
-	/** 界面语言：auto 跟随系统（navigator.language），zh/en 手动指定（PLAN §14 C）。 */
+	/** 界面语言：auto 跟随 Obsidian 界面语言（getLanguage，回退系统），zh/en 手动指定（PLAN §14 C）。 */
 	language: LanguageSetting;
 	/** 全局总开关：关闭时插件不做任何排版干预（frontmatter `inkstone: true` 仍可单篇开启）。 */
 	enabled: boolean;

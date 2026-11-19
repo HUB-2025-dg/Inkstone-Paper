@@ -89,7 +89,7 @@ D:\Obsidian-Kami\
 
 | Obsidian 元素 | Kami 对应物 |
 |---|---|
-| h1-h6 | Kami 字号阶梯（屏显 px ≈ pt×1.33，12px 下限），层级靠字号+间距，无装饰线 |
+| h1-h6 | em 字号阶梯（display 3.6 / h1 2.2 / h2 1.6 / h3 1.3 / h4 1.1 / label 0.9，基准 = Obsidian 字号 × 倍率，§14 A），层级靠字号+间距，无装饰线 |
 | 正文 | 阅读档 1.55 行高，默认栏宽 700px 可调 |
 | blockquote | Kami .quote（olive 色，无边条） |
 | table | kami-table（表头 0.6pt / 行 0.25pt 暖线，默认无斑马纹，外列贴文字边） |
@@ -116,7 +116,7 @@ D:\Obsidian-Kami\
 
 | 设置项（中文界面原文） | 默认 | 取值与范围 |
 |---|---|---|
-| 界面语言 | 自动（跟随系统） | auto / 中文 / English；auto 按 `navigator.language` 解析，非 zh 开头为英文（§14 C） |
+| 界面语言 | 自动（跟随 Obsidian） | auto / 中文 / English；auto 按 Obsidian 配置的界面语言（getLanguage）解析，未配置时回退系统语言，非 zh 开头为英文（§14 C） |
 | 启用 Inkstone | 开 | 布尔；单篇由 frontmatter 覆盖 |
 | 暗色模式下生效 | 开 | 布尔；关闭后暗色主题下不干预 |
 | 纸张样式 | 暖纸 | 暖纸（Kami 默认）/ 白纸（打印变体） |
@@ -182,7 +182,7 @@ D:\Obsidian-Kami\
 ### 已确认决策
 
 - 字号完全跟随 Obsidian 规则（不自创阶梯）；「字号缩放」保留为 Obsidian 字号倍率（100% = 完全跟随）。
-- 界面语言默认跟随 Obsidian/系统（navigator.language），可手动 auto/中文/English。
+- 界面语言默认跟随 Obsidian 界面语言（getLanguage；未配置时回退系统），可手动 auto/中文/English。
 - 三项一起出 v1.0.1。
 
 ### 改动项
@@ -194,9 +194,9 @@ D:\Obsidian-Kami\
 
 ### v1.0.1 验收清单
 
-（第 1 项含 lint/build 与产物装配 md5，待装配步骤勾选；其余各项为人工目检，由实测步骤勾选，本步不预勾。）
+（第 1 项已于复审第 1 轮修复时完成：lint/build 全绿，产物装配 spark-cache 验收库且 md5 逐文件一致；其余各项为人工目检，仍需实测步骤勾选。）
 
-- [ ] `npm run lint` + `npm run build` 全绿；产物装配 spark-cache 验收库（md5 逐文件比对）
+- [x] `npm run lint` + `npm run build` 全绿；产物装配 spark-cache 验收库（md5 逐文件比对）
 - [ ] 2026-11-15 / 2026-11-16 阅读视图均生效；阅读与编辑模式字号一致；切标签、重开 Obsidian 立即正确
 - [ ] `inkstone: false` 单篇禁用零残留；暗色门控行为不回归
 - [ ] auto 档中文系统显示中文；手动切 English 设置页即时变英文

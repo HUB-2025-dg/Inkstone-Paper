@@ -4,8 +4,8 @@
    分段：⓪ 打包字体 ① 令牌（亮/暗/白纸变体）② 阅读域排版（标题阶梯/正文）
    ③ §7 组件映射 ④ Live Preview 共享层（只共享令牌与基础排版，无动效）
    ⑤ 动效层（阅读域）⑥ reduced-motion ⑦ 设置驱动的覆盖（scope.ts → body）。
-   作用域：阅读模式由 scope.ts 挂 `.inkstone`；Live Preview 以 body 上的
-   `.inkstone-global`（全局开关镜像）为前提。
+   作用域：阅读模式由 scope.ts 挂 `.inkstone`；Live Preview 由 scope.ts 按叶子
+   文件解析后挂 `.markdown-source-view.inkstone-lp`（frontmatter 单篇覆盖同样生效）。
    约束：tag 一律实底 hex（禁 rgba）；无装饰性线条（线只做分隔/状态/关系）；
    无斜体；灰一律暖调（R≈G>B）；油墨蓝是唯一强调色（breaking 为注册例外）。
    ========================================================================== */
@@ -158,6 +158,18 @@ body.theme-dark {
 	font-size: calc(var(--font-text-size) * var(--ik-scale));
 }
 
+/* 页底压过 Obsidian 阅读视图规则：asar 中
+   `.workspace-leaf-content.is-read-mode .markdown-preview-view` 以 (0,3,0)
+   钉死 `background-color: var(--background-primary)`，单靠 `.inkstone`
+   (0,1,0) 永远输；这里用同级前缀 + 作用域类提到 (0,4,0) 以上，暖纸/白纸才可见
+   （PLAN §14 B 必改点，复审第 1 轮）。类可能挂在 reading-view 或
+   preview-view 上，两种挂法都覆盖。 */
+.workspace-leaf-content.is-read-mode .markdown-preview-view.inkstone,
+.workspace-leaf-content.is-read-mode .inkstone .markdown-preview-view:not(.inkstone-off),
+.workspace-leaf-content.is-read-mode .markdown-reading-view.inkstone {
+	background-color: var(--ik-parchment);
+}
+
 /* inline title：Display 档，中文 display 给光学字距（design.md §2 letter-spacing） */
 .inkstone .inline-title {
 	font-size: 3.6em;
@@ -200,13 +212,13 @@ body.theme-dark {
 }
 /* h5/h6 落在 label 档；h6 再降一色阶区分 */
 .inkstone h5 {
-	font-size: max(12px, 0.9em);
+	font-size: 0.9em;
 	line-height: 1.35;
 	letter-spacing: 0.015em;
 	margin: var(--ik-space-lg) 0 var(--ik-space-sm);
 }
 .inkstone h6 {
-	font-size: max(12px, 0.9em);
+	font-size: 0.9em;
 	line-height: 1.35;
 	letter-spacing: 0.015em;
 	color: var(--ik-stone);
@@ -323,7 +335,7 @@ body.theme-dark {
 	border-radius: 5px;
 	padding: 13px 18px;
 	font-family: var(--ik-mono);
-	font-size: max(12px, 0.9em);
+	font-size: 0.9em;
 	line-height: 1.5;
 }
 .inkstone pre code {
@@ -346,7 +358,7 @@ body.theme-dark {
 	border: none;
 	text-decoration: none;
 	background-image: none;
-	font-size: max(12px, 0.9em);
+	font-size: 0.9em;
 	font-weight: 500;
 	line-height: inherit;
 	padding: 1px 6px;
@@ -468,14 +480,14 @@ body.theme-dark {
 }
 
 /* img：8px 圆角（屏显块级圆角档）；alt 题注由 mapping.ts 生成节点，
-   这里只负责它的排版：stone 色、label 档（0.9em，12px 下限）、1.45 行高 */
+   这里只负责它的排版：stone 色、label 档（0.9em）、1.45 行高 */
 .inkstone img {
 	border-radius: 8px;
 }
 .inkstone .inkstone-img-caption {
 	display: block;
 	color: var(--ik-stone);
-	font-size: max(12px, 0.9em);
+	font-size: 0.9em;
 	line-height: 1.45;
 	margin-top: var(--ik-space-xs);
 	text-align: center;
@@ -561,17 +573,17 @@ body.theme-dark {
 /* 字号基座与阅读域同源：.cm-content 显式钉住 calc(正文 × 倍率)；
    .cm-sizer 同时钉住，使 .inline-title（其子节点）的 em 阶梯共享同一基准 */
 
-body.inkstone-global .markdown-source-view.mod-cm6 .cm-sizer,
-body.inkstone-global .markdown-source-view.mod-cm6 .cm-content {
+.markdown-source-view.inkstone-lp.mod-cm6 .cm-sizer,
+.markdown-source-view.inkstone-lp.mod-cm6 .cm-content {
 	font-size: calc(var(--font-text-size) * var(--ik-scale));
 }
 
-body.inkstone-global .markdown-source-view.mod-cm6 .cm-scroller {
+.markdown-source-view.inkstone-lp.mod-cm6 .cm-scroller {
 	font-family: var(--ik-font);
 	line-height: 1.55;
 }
 
-body.inkstone-global .markdown-source-view .inline-title {
+.markdown-source-view.inkstone-lp .inline-title {
 	font-size: 3.6em;
 	font-weight: 500;
 	line-height: 1.2;
@@ -580,46 +592,46 @@ body.inkstone-global .markdown-source-view .inline-title {
 }
 
 /* 编辑态标题行走同一阶梯（HyperMD 行类），行高放宽到 1.25 保 CJK 下延不裁切 */
-body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header {
+.markdown-source-view.inkstone-lp.mod-cm6 .HyperMD-header {
 	color: var(--ik-near-black);
 }
-body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-1 {
+.markdown-source-view.inkstone-lp.mod-cm6 .HyperMD-header-1 {
 	font-size: 2.2em;
 	line-height: 1.25;
 }
-body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-2 {
+.markdown-source-view.inkstone-lp.mod-cm6 .HyperMD-header-2 {
 	font-size: 1.6em;
 	line-height: 1.25;
 }
-body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-3 {
+.markdown-source-view.inkstone-lp.mod-cm6 .HyperMD-header-3 {
 	font-size: 1.3em;
 	line-height: 1.3;
 }
-body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-4 {
+.markdown-source-view.inkstone-lp.mod-cm6 .HyperMD-header-4 {
 	font-size: 1.1em;
 	line-height: 1.3;
 }
-body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-5 {
-	font-size: max(12px, 0.9em);
+.markdown-source-view.inkstone-lp.mod-cm6 .HyperMD-header-5 {
+	font-size: 0.9em;
 	line-height: 1.35;
 	letter-spacing: 0.015em;
 }
-body.inkstone-global .markdown-source-view.mod-cm6 .HyperMD-header-6 {
-	font-size: max(12px, 0.9em);
+.markdown-source-view.inkstone-lp.mod-cm6 .HyperMD-header-6 {
+	font-size: 0.9em;
 	line-height: 1.35;
 	letter-spacing: 0.015em;
 	color: var(--ik-stone);
 }
 
-body.inkstone-global .markdown-source-view.mod-cm6 .cm-inline-code {
+.markdown-source-view.inkstone-lp.mod-cm6 .cm-inline-code {
 	background: var(--ik-inline-code-bg);
 	color: var(--ik-near-black);
 	border-radius: 3px;
 }
-body.inkstone-global .markdown-source-view.mod-cm6 .cm-hashtag {
+.markdown-source-view.inkstone-lp.mod-cm6 .cm-hashtag {
 	color: var(--ik-brand);
 }
-body.inkstone-global .markdown-source-view.mod-cm6 .cm-highlight {
+.markdown-source-view.inkstone-lp.mod-cm6 .cm-highlight {
 	background: var(--ik-warm-sand);
 	color: var(--ik-near-black);
 	border-radius: 2px;

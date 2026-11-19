@@ -8,7 +8,6 @@ import {
 	type SettingsController,
 } from './settings';
 import {
-	applyGlobalScope,
 	applyTypographyOverrides,
 	clearBodyOverrides,
 	clearScopeClasses,
@@ -80,17 +79,23 @@ export default class InkstonePlugin extends Plugin implements SettingsController
 		this.app.workspace.onLayoutReady(() => {
 			if (!this.disposed) this.scheduleScopeSync();
 		});
-		// 主题切换等 CSS 变更会改变暗色门控的判定：重算 body 作用域并重渲染阅读视图
+		// 主题切换等 CSS 变更会改变暗色门控的判定：重算作用域并重渲染阅读视图
 		this.registerEvent(this.app.workspace.on('css-change', () => this.refreshRuntime(true)));
 		// 弹窗窗口有独立 body/document（复审第 1 轮 §5）：新弹窗打开与布局变化时
-		// 重铺 body 级镜像并同步作用域；作用域签名未变化，不会触发阅读视图重渲染
+		// 重铺排版覆盖并同步作用域；作用域签名未变化，不会触发阅读视图重渲染
 		this.registerEvent(this.app.workspace.on('window-open', () => this.refreshRuntime()));
 		// 切标签 / 分屏 / 布局变化：视图与文件绑定改变或阅读根重建，去抖后重同步
 		this.registerEvent(this.app.workspace.on('layout-change', () => this.scheduleScopeSync()));
 		this.registerEvent(
 			this.app.workspace.on('active-leaf-change', () => this.scheduleScopeSync()),
 		);
-		// 立即重算一次：body 镜像 + 排版覆盖 + 阅读域作用域同步（含首轮重渲染）
+		// 非激活方式打开文件（unpinned leaf、后台打开）不经过 active-leaf-change：
+		// file-open 兜住「文件已绑定但作用域类未同步」的路径
+		this.registerEvent(this.app.workspace.on('file-open', () => this.scheduleScopeSync()));
+		// frontmatter 编辑后的元数据变更（分屏/编辑模式改 inkstone: false|true）：
+		// 不依赖文件重新打开，缓存一更新就重算阅读根与 LP 作用域类
+		this.registerEvent(this.app.metadataCache.on('changed', () => this.scheduleScopeSync()));
+		// 立即重算一次：排版覆盖 + 阅读域/LP 作用域同步（含首轮重渲染）
 		this.refreshRuntime();
 	}
 
@@ -119,10 +124,10 @@ export default class InkstonePlugin extends Plugin implements SettingsController
 	}
 
 	/**
-	 * 重算 body 级作用域与排版覆盖（主窗口 + 弹窗逐窗口执行）：字体/缩放/
-	 * 栏宽经 CSS 变量与类即时生效，无需重渲染；关停中的动效立即清理观察器
-	 * 与残留类。随后按 frontmatter 幂等同步每个阅读视图的作用域类——这一步
-	 * 与渲染时机无关，是「已渲染但漏挂」路径的权威修正（PLAN §14 B）。
+	 * 重算 body 级排版覆盖（主窗口 + 弹窗逐窗口执行）：字体/缩放/栏宽经
+	 * CSS 变量与类即时生效，无需重渲染；关停中的动效立即清理观察器与残留类。
+	 * 随后按 frontmatter 幂等同步每个阅读视图与 Live Preview 源容器的作用域类
+	 * ——这一步与渲染时机无关，是「已渲染但漏挂」路径的权威修正（PLAN §14 B）。
 	 * 仅当作用域签名（RERENDER_KEYS）相对上次变化时重渲染打开的阅读视图，
 	 * 使纸张/暗色门控与观察器附着按最新设置重新解析；forceRerender 跳过签名
 	 * 比对（css-change 等环境性变更）。首轮（lastScopeSignature 为 null）不再
@@ -132,7 +137,6 @@ export default class InkstonePlugin extends Plugin implements SettingsController
 	 * 布局变化不会重渲染（签名未变），避免重复开销。
 	 */
 	private refreshRuntime(forceRerender = false): void {
-		applyGlobalScope(this);
 		applyTypographyOverrides(this);
 		syncScopeClasses(this);
 		const off = !this.inkstoneSettings.enabled;

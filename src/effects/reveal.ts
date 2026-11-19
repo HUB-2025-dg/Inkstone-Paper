@@ -3,6 +3,8 @@ import {
 	SCOPE_ON,
 	collectDocuments,
 	prefersReducedMotion,
+	resolveScopeClasses,
+	runWhenAttached,
 	type ScopeHost,
 } from '../scope';
 
@@ -46,37 +48,49 @@ function pruneDetachedRoots(): void {
 }
 
 export function registerRevealEffect(plugin: ScopeHost): void {
-	plugin.registerMarkdownPostProcessor((el) => {
-		// Live Preview 域内渲染不参与（ADR-0003：LP 无动效；复审第 1 轮 §3）
-		if (el.closest('.cm-editor')) return;
-		// 只认真实阅读渲染根：不回退到 el 本身（LP widget 等无根宿主不参与）
-		const rootEl = el.closest(RENDER_ROOT_SELECTOR);
-		if (!rootEl?.instanceOf(HTMLElement)) return;
-		if (!rootEl.classList.contains(SCOPE_ON)) return;
-		const { effectsEnabled, revealEnabled } = plugin.inkstoneSettings;
-		if (!effectsEnabled || !revealEnabled) return;
-		if (prefersReducedMotion()) return;
-
-		let observer = observers.get(rootEl);
-		if (!observer) {
-			observer = new IntersectionObserver(onRevealEntries, { threshold: 0 });
-			observers.set(rootEl, observer);
-		}
-
-		// 以渲染块的顶层子元素为单位做块级渐显；空壳容器则取自身
-		const blocks = el.children.length > 0 ? Array.from(el.children) : [el];
-		for (const block of blocks) {
-			if (!block.instanceOf(HTMLElement)) continue;
-			// 已登记或已揭示的块跳过（post-processor 可能重复回调，保证幂等）
-			if (block.classList.contains(REVEAL_CLASS) || block.classList.contains(REVEALED_CLASS)) {
-				continue;
-			}
-			block.classList.add(REVEAL_CLASS);
-			observer.observe(block);
-		}
+	plugin.registerMarkdownPostProcessor((el, ctx) => {
+		const frontmatter: unknown = ctx.frontmatter;
+		// section 在 postProcess 时可能尚未上树（PLAN §14 诊断）：延后到上树后
+		// 再定位渲染根，否则 el.closest 永远拿到 null，渐显从不生效
+		runWhenAttached(el, (sectionEl) => {
+			attachReveal(plugin, sectionEl, frontmatter);
+		});
 	});
 
 	plugin.registerEvent(plugin.app.workspace.on('layout-change', pruneDetachedRoots));
+}
+
+/** 在已上树的 section 上登记渐显块；归属与开关判定均在调用时执行。 */
+function attachReveal(plugin: ScopeHost, el: HTMLElement, frontmatter: unknown): void {
+	// Live Preview 域内渲染不参与（ADR-0003：LP 无动效；复审第 1 轮 §3）
+	if (el.closest('.cm-editor')) return;
+	// 只认真实阅读渲染根：不回退到 el 本身（LP widget 等无根宿主不参与）
+	const rootEl = el.closest(RENDER_ROOT_SELECTOR);
+	if (!rootEl?.instanceOf(HTMLElement)) return;
+	const { effectsEnabled, revealEnabled } = plugin.inkstoneSettings;
+	if (!effectsEnabled || !revealEnabled) return;
+	if (prefersReducedMotion()) return;
+	// 按 frontmatter + 设置判定生效域，而非读渲染根类：延后执行时同步可能
+	// 尚未挂类；CSS 本身以 `.inkstone` 为前提，类晚到不会产生错误外观
+	if (!resolveScopeClasses(frontmatter, plugin.inkstoneSettings).includes(SCOPE_ON)) return;
+
+	let observer = observers.get(rootEl);
+	if (!observer) {
+		observer = new IntersectionObserver(onRevealEntries, { threshold: 0 });
+		observers.set(rootEl, observer);
+	}
+
+	// 以渲染块的顶层子元素为单位做块级渐显；空壳容器则取自身
+	const blocks = el.children.length > 0 ? Array.from(el.children) : [el];
+	for (const block of blocks) {
+		if (!block.instanceOf(HTMLElement)) continue;
+		// 已登记或已揭示的块跳过（post-processor 可能重复回调，保证幂等）
+		if (block.classList.contains(REVEAL_CLASS) || block.classList.contains(REVEALED_CLASS)) {
+			continue;
+		}
+		block.classList.add(REVEAL_CLASS);
+		observer.observe(block);
+	}
 }
 
 /** 插件卸载：断开全部观察器并逐窗口摘除类名，恢复原文档外观。 */

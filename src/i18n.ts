@@ -5,7 +5,9 @@
  * 英文一律 sentence case（Obsidian 审核规范）。
  */
 
-/** 界面语言设置值：auto 跟随系统，zh/en 手动指定。 */
+import { getLanguage, requireApiVersion } from 'obsidian';
+
+/** 界面语言设置值：auto 跟随 Obsidian/系统，zh/en 手动指定。 */
 export type LanguageSetting = 'auto' | 'zh' | 'en';
 /** 解析后的实际语言：auto 只决定取向，最终落到 zh/en。 */
 export type ResolvedLanguage = 'zh' | 'en';
@@ -18,11 +20,25 @@ export function isLanguageSetting(value: unknown): value is LanguageSetting {
 	return value === 'auto' || value === 'zh' || value === 'en';
 }
 
-/** auto 取 navigator.language，以 zh 开头为中文，否则英文（PLAN §14 C）。 */
+/**
+ * auto 取 Obsidian 配置的界面语言（getLanguage；未配置时它自身回退系统语言），
+ * 以 zh 开头为中文，否则英文。getLanguage 自 1.8.7 才提供，低版本以
+ * navigator.language 兜底（manifest minAppVersion 仍是 1.5.0）。
+ */
 export function resolveLanguage(language: LanguageSetting): ResolvedLanguage {
 	if (language === 'zh' || language === 'en') return language;
+	let appLanguage = '';
+	if (requireApiVersion('1.8.7') && typeof getLanguage === 'function') {
+		try {
+			appLanguage = getLanguage() ?? '';
+		} catch {
+			// 旧版运行时缺失该 API：退回系统语言
+			appLanguage = '';
+		}
+	}
 	const systemLanguage =
-		typeof navigator === 'undefined' ? '' : (navigator.language ?? '');
+		appLanguage ||
+		(typeof navigator === 'undefined' ? '' : (navigator.language ?? ''));
 	return systemLanguage.toLowerCase().startsWith('zh') ? 'zh' : 'en';
 }
 
@@ -56,8 +72,8 @@ export const LABELS = {
 /** 设置项说明。 */
 export const DESCS = {
 	language: {
-		zh: '自动跟随系统语言。设置页即时更新；命令名称在重启 Obsidian 后更新。',
-		en: 'Auto follows the system language. The settings page updates at once; command names update after restarting Obsidian.',
+		zh: '自动跟随 Obsidian 的界面语言（未设置时回退系统语言）。设置页即时更新；命令名称在重启 Obsidian 后更新。',
+		en: 'Auto follows the Obsidian interface language (falling back to the system language). The settings page updates at once; command names update after restarting Obsidian.',
 	},
 	enable: {
 		zh: '把 Kami 排版层与动效应用到笔记。单篇可用 frontmatter inkstone: false 关闭，或用 inkstone: true 强制开启。',
@@ -76,8 +92,8 @@ export const DESCS = {
 		en: 'Kami serif is the bundled default. Sans-serif switches to a plain sans stack; follow Obsidian uses the font chosen in the appearance settings.',
 	},
 	fontScale: {
-		zh: '整体放大或缩小字号阶梯。100% 为跟随 Obsidian 字号。',
-		en: 'Scale the whole type ladder up or down. 100% follows the Obsidian font size.',
+		zh: '作为 Obsidian 字号的倍率，同步缩放阅读与编辑视图。100% 为完全跟随 Obsidian 字号。',
+		en: 'Scales the Obsidian font size as a multiplier in both reading and editing views. 100% follows the Obsidian font size exactly.',
 	},
 	lineWidth: {
 		zh: '文本栏宽上限，单位为像素。Kami 默认 700。',
@@ -129,7 +145,7 @@ export const OPTIONS = {
 	fontDefault: { zh: 'Kami 衬线', en: 'Kami serif' },
 	fontSans: { zh: '无衬线', en: 'Sans-serif' },
 	fontObsidian: { zh: '跟随 Obsidian', en: 'Follow Obsidian' },
-	languageAuto: { zh: '自动（跟随系统）', en: 'Auto (follow system)' },
+	languageAuto: { zh: '自动（跟随 Obsidian）', en: 'Auto (follow Obsidian)' },
 	languageZh: { zh: '中文', en: '中文' },
 	languageEn: { zh: 'English', en: 'English' },
 } as const satisfies Record<string, Bilingual>;
