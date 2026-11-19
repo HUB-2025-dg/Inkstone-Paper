@@ -48,8 +48,9 @@ D:\Obsidian-Kami\
 ├─ assets/fonts/（OFL 字体 + LICENSE；优先 woff2，转换不便则 TTF）
 └─ src/
    ├─ main.ts            InkstonePlugin 生命周期、命令注册
-   ├─ settings.ts        设置面板 + DEFAULT_SETTINGS
-   ├─ scope.ts           生效范围管理：全局开关 + frontmatter → 容器类切换
+   ├─ settings.ts        设置面板 + DEFAULT_SETTINGS（1.13+ 声明式与 <1.13 命令式双路径）
+   ├─ i18n.ts            界面文案中英双语字典（设置页 / 下拉项 / 命令名 / Notice）
+   ├─ scope.ts           生效范围管理：全局开关 + frontmatter → 容器类切换 + 作用域同步
    ├─ mapping.ts         阅读视图 DOM 结构调整（仅 CSS 够不到的部分）
    └─ effects/ reveal.ts / focus.ts / typewriter.ts（呼吸效果纯 CSS）
 ```
@@ -58,7 +59,7 @@ D:\Obsidian-Kami\
 
 ## 5. 核心机制
 
-- **作用域**：post-processor 读 `ctx.frontmatter`，在渲染根节点挂 `inkstone` / `inkstone-off` / `inkstone-paper` 类；全局开关由设置控制。效果类 JS 只在 `.inkstone` 作用域内激活。
+- **作用域**：post-processor 读 `ctx.frontmatter`，在渲染根节点挂 `inkstone` / `inkstone-off` / `inkstone-paper` 类；全局开关由设置控制。效果类 JS 只在 `.inkstone` 作用域内激活。post-processor 依赖渲染调用时刻的 DOM 归属，v1.0.1 起另由 `syncScopeClasses` 按 metadataCache 的 frontmatter 对每个打开视图幂等直挂作用域类（§14 B），不受渲染时序影响。
 - **排版层**：90% 纯 CSS（Kami 令牌映射到 Obsidian 元素）；mapping.ts 只做 CSS 够不到的结构调整（img alt→题注等）。
 - **字体运行时加载**：插件目录内字体经 vault adapter `getResourcePath` 生成 `app://` 地址注入 `@font-face`（卸载时移除），移动端兼容；不可靠时退回 data URI 内嵌。
 - **合规硬约束**（eslint-plugin-obsidianmd 规则）：禁 `innerHTML`/静态 style 赋值 → 全部 `createEl` + class；不用全局 `app`；事件 `registerEvent`；UI 文本 Sentence case；`override` 修饰；无默认热键；无 Node/Electron 独占 API；manifest 过 validateManifest；默认零网络请求。
@@ -111,7 +112,22 @@ D:\Obsidian-Kami\
 
 ## 9. 设置项
 
-全局开关；纸张样式（暖纸默认 / 白纸打印变体）；暗色下是否生效；字体族覆盖；字号缩放（v1.0.1 起为 Obsidian 字号倍率，100% = 完全跟随 Obsidian）；栏宽（默认 700px）；界面语言（v1.0.1 新增：auto / 中文 / English，默认跟随系统，见 §14）；效果总开关 + 四项独立开关；打字机速度。
+设置面板分四节（界面 / 纸张 / 排版 / 动效），全部设置项与默认值以 `src/settings.ts` 的 `DEFAULT_SETTINGS` 为准：
+
+| 设置项（中文界面原文） | 默认 | 取值与范围 |
+|---|---|---|
+| 界面语言 | 自动（跟随系统） | auto / 中文 / English；auto 按 `navigator.language` 解析，非 zh 开头为英文（§14 C） |
+| 启用 Inkstone | 开 | 布尔；单篇由 frontmatter 覆盖 |
+| 暗色模式下生效 | 开 | 布尔；关闭后暗色主题下不干预 |
+| 纸张样式 | 暖纸 | 暖纸（Kami 默认）/ 白纸（打印变体） |
+| 字体族 | Kami 衬线 | Kami 衬线 / 无衬线 / 跟随 Obsidian |
+| 字号缩放 | 100 | 85–125，步进 5；Obsidian 字号倍率，100 = `--ik-scale: 1` 完全跟随 Obsidian（§14 A） |
+| 栏宽 | 700 | 500–1000，步进 10；经 `--file-line-width` 生效，受 Obsidian「可读行宽」开关约束（§14 诊断附注） |
+| 启用动效 | 开 | 布尔；关闭后四项独立开关与速度滑杆置灰，只保留静态排版 |
+| 滚动渐显 / 交互呼吸 / 聚焦阅读 / 打字机 | 开 / 开 / 关 / 开 | 布尔；总开关关闭时一并停用 |
+| 打字机速度 | 45 | 10–120 字/秒，步进 1 |
+
+设置面板双路径渲染：Obsidian 1.13+ 走 `getSettingDefinitions()` 声明式 API（进入全局搜索），<1.13 回退 `display()` 命令式渲染；两条路径共用 `i18n.ts` 的同一套文案。设置页文案随「界面语言」即时切换，命令面板中的命令名在重启 Obsidian 后更新。
 
 ## 10. 实施步骤与状态
 
@@ -125,6 +141,7 @@ D:\Obsidian-Kami\
 - [x] 8. 装配：构建产物装入 `spark-cache` 库 `.obsidian/plugins/inkstone/`，铺全要素验收样例笔记
 - [x] 9. 收尾：README（中英双语，致谢 tw93/kami）、PLAN 状态更新、git 提交
 - [ ] 10. 独立复审 + 修复：全代码对照 PLAN 与审核规范；复审发现逐条修复并复验
+- [x] 11. v1.0.1 实测反馈修复：A 字号跟随 Obsidian、B 阅读域作用域稳定性、C 界面中英双语、D 版本与文档（manifest/versions → 1.0.1）；验收清单见 §14，装配与人工目检项待后续步骤勾选
 
 ## 11. v1.0 验收清单（终点判定）
 
@@ -171,11 +188,13 @@ D:\Obsidian-Kami\
 ### 改动项
 
 - [x] **A. 字号跟随 Obsidian**（styles.css）：删除 Kami px 字号阶梯定义及全部 font-size 覆盖，阅读域继承 `--font-text-size` + em 阶梯；保留字体族/颜色/字重 500/行高/字距/间距/背景/栏宽；`--ik-scale` 作为倍率统一作用于阅读域渲染根与 LP `.cm-content`（`calc(var(--font-text-size) * var(--ik-scale))`），两模式同步缩放
-- [ ] **B. 阅读域作用域稳定性**（scope.ts + main.ts）：实施首步先在验收库钉死漏挂路径（渲染根 DOM 诊断，结论补记本节）；新增 `syncScopeClasses`（metadataCache frontmatter → 复用 resolve/applyScopeClasses 幂等直挂，选择器扩 `.markdown-reading-view`），onload / active-leaf-change / layout-change / css-change 触发（去抖 ~100ms）；移除首跳守卫，首次加载也重渲染阅读视图
-- [ ] **C. 中英双语**（settings.ts + effects）：新增 `language` 设置（auto/zh/en）+ LABEL/DESC 双语字典 + `t()` 取词；下拉选项 addOptions 本地化显示名；覆盖设置页全部文案、命令名（打字机）、Notice
-- [ ] **D. 文档与版本**：本节随实施勾选；§9 同步；manifest/versions → 1.0.1
+- [x] **B. 阅读域作用域稳定性**（scope.ts + main.ts）：实施首步先在验收库钉死漏挂路径（渲染根 DOM 诊断，结论补记本节）；新增 `syncScopeClasses`（metadataCache frontmatter → 复用 resolve/applyScopeClasses 幂等直挂，选择器扩 `.markdown-reading-view`），onload / active-leaf-change / layout-change / css-change 触发（去抖 ~100ms）；移除首跳守卫，首次加载也重渲染阅读视图
+- [x] **C. 中英双语**（settings.ts + effects）：新增 `language` 设置（auto/zh/en）+ LABEL/DESC 双语字典 + `t()` 取词；下拉选项 addOptions 本地化显示名；覆盖设置页全部文案、命令名（打字机）、Notice
+- [x] **D. 文档与版本**：本节随实施勾选；§9 同步；manifest/versions → 1.0.1
 
 ### v1.0.1 验收清单
+
+（第 1 项含 lint/build 与产物装配 md5，待装配步骤勾选；其余各项为人工目检，由实测步骤勾选，本步不预勾。）
 
 - [ ] `npm run lint` + `npm run build` 全绿；产物装配 spark-cache 验收库（md5 逐文件比对）
 - [ ] 2026-11-15 / 2026-11-16 阅读视图均生效；阅读与编辑模式字号一致；切标签、重开 Obsidian 立即正确

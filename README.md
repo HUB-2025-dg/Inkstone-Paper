@@ -2,7 +2,7 @@
 
 自带 Kami 排版层与克制动效的 Obsidian 插件：把 tw93/kami 设计系统的纸感排版移植进阅读视图，暖纸底、油墨蓝作为唯一强调色、衬线承载层级，再叠一层只服务信息的微动效。排版层由插件自持，不依赖任何主题。
 
-插件 id `inkstone`，当前版本 0.1.0，最低要求 Obsidian 1.5.0。
+插件 id `inkstone`，当前版本 1.0.1，最低要求 Obsidian 1.5.0。
 
 ## 功能概览
 
@@ -23,6 +23,14 @@
 - Live Preview 只共享排版令牌与基础排版，无动效
 - 零网络请求：无遥测、无字体 CDN、无更新检查
 - 卸载零残留：作用域类、观察器、临时 DOM 全部清理，笔记恢复 Obsidian 原状
+
+## 字号跟随 Obsidian
+
+插件不自建 px 字号阶梯。阅读视图与 Live Preview 的正文基准统一为 `calc(var(--font-text-size) * var(--ik-scale))`，即 Obsidian 外观设置中的字体大小乘以插件的字号倍率。字号缩放为 100% 时，阅读与编辑视图都等于你为 Obsidian 设定的字号；在 85% 至 125% 之间调整时，两种模式同步缩放，标题与正文的比例靠 em 阶梯保持不变。最小一档的标题、代码块与标签等小号文字保留 12px 可读下限。字体族、字重、行高、字距、颜色与栏宽仍由 Kami 排版层控制。
+
+## 界面语言
+
+设置项「界面语言」支持自动（跟随系统）/ 中文 / English，默认自动：`navigator.language` 以 `zh` 开头显示中文，其余显示英文。设置页与提示消息即时切换；命令面板中的「播放打字机效果 / Play typewriter effect」在重启 Obsidian 后按新语言更新。
 
 ## 安装
 
@@ -76,11 +84,12 @@ inkstone-paper: false   # 本篇用暖纸，覆盖全局的白纸设置；写 tr
 
 | 设置项（界面原文） | 默认 | 说明 |
 | --- | --- | --- |
+| Interface language | Auto (follow system) | 自动跟随系统语言，或手动选 中文 / English；设置页即时切换，命令名重启后更新 |
 | Enable Inkstone | 开 | 全局总开关；关闭后插件不做排版干预，frontmatter `inkstone: true` 仍可单篇开启 |
 | Active in dark mode | 开 | 暗色主题下是否生效；frontmatter 显式表达优先于本项 |
 | Paper style | Warm paper | 暖纸（Kami 默认）或白纸打印变体 |
 | Font family | Kami serif | 衬线（打包霞鹜文楷屏幕版）/ Sans-serif 无衬线 / Follow Obsidian 跟随外观字体 |
-| Font size scale | 100 | 85 至 125，步进 5，整条字号阶梯缩放 |
+| Font size scale | 100 | 85 至 125，步进 5；Obsidian 字号倍率，100 = 完全跟随 Obsidian |
 | Column width | 700 | 500 至 1000px，步进 10，正文版心宽度 |
 | Enable effects | 开 | 动效总开关；关闭后四项动效全部停用，保留静态排版 |
 | Scrolling reveal | 开 | 滚动渐显独立开关 |
@@ -106,6 +115,19 @@ inkstone-paper: false   # 本篇用暖纸，覆盖全局的白纸设置；写 tr
 - 移动端未实测（代码保持 `isDesktopOnly: false` 的兼容约束）。
 - 长笔记滚动性能未做量化测量。
 
+## 变更记录
+
+### 1.0.1（2026-11-19）
+
+- **字号跟随 Obsidian**：删除自建 px 字号阶梯，阅读与编辑视图共用 Obsidian 字号基准；「字号缩放」改为倍率，100% 即完全跟随
+- **阅读视图稳定性**：新增作用域同步，插件加载前已渲染的笔记、新建标签页、切回阅读模式都会立即补上作用域类，不再逐篇失效
+- **界面中英双语**：新增「界面语言」（自动 / 中文 / English）
+- **版本与文档**：manifest 与 versions.json 升至 1.0.1，README、PLAN、GLOSSARY 同步
+
+### 0.1.0
+
+首个版本：Kami 排版层、四项微动效、frontmatter 单篇覆盖、打包 OFL 字体。
+
 ## 许可证
 
 本插件代码以 [MIT](https://opensource.org/licenses/MIT) 许可发布。
@@ -127,9 +149,15 @@ inkstone-paper: false   # 本篇用暖纸，覆盖全局的白纸设置；写 tr
 
 **Effects** (reading mode only, all respect `prefers-reduced-motion`): scrolling reveal (fade + 8px rise, 240ms, once per block); interactive breathing (CSS hover lift and underline growth, 150-200ms); focus reading (paragraphs outside the viewport's middle band dim, off by default); typewriter (command `Play typewriter effect`, 10-120 chars/s, click or Esc to skip).
 
+**Font size follows Obsidian**: the plugin defines no px type ladder of its own. Body text in both reading view and Live Preview is `calc(var(--font-text-size) * var(--ik-scale))`, your Obsidian font size times the plugin scale. At 100% both modes match the size set in Obsidian; 85-125% scales them together, with heading ratios kept by an em ladder and a 12px floor for the smallest headings, code blocks and tags.
+
+**Interface language**: auto (follow the system) / 中文 / English, auto by default (`navigator.language` starting with `zh` gives Chinese, otherwise English). The settings page and notices switch instantly; command names update after restarting Obsidian.
+
 **Install**: copy `main.js`, `styles.css`, `manifest.json` and the `fonts/` folder into `<vault>/.obsidian/plugins/inkstone/`, then enable it in Community plugins. BRAT works once the plugin is published to a public GitHub repository.
 
 **Frontmatter**: `inkstone: false` disables per note (highest priority); `inkstone: true` forces it on; `inkstone-paper: true/false` overrides the paper style per note.
+
+**Changelog**: 1.0.1 — font size follows Obsidian (the scale becomes a multiplier, 100% = unchanged); scope classes are synced to every open reading view so no note is skipped; bilingual interface (auto / Chinese / English); version bumped to 1.0.1.
 
 **Known limits (v1.0)**: the workspace shell (sidebars, tabs, status bar) is left untouched; effects are reading-mode only while Live Preview shares tokens and basic typesetting; mobile is untested.
 
