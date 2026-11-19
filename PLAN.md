@@ -203,6 +203,8 @@ D:\Obsidian-Kami\
 - [ ] 缩放 100% 与 Obsidian 原生字号一致；非 100% 两模式同步缩放
 - [ ] 明暗两主题各验一遍
 
+以上未勾项待用户在 Obsidian 内目检。
+
 ### 诊断结论（v1.0.1 实施首步）
 
 **实测事实（2026-11-19，spark-cache；Obsidian 1.15.0，取自 `resources/obsidian.asar/package.json`）**

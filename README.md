@@ -4,6 +4,8 @@
 
 插件 id `inkstone`，社区目录显示名 `Inkstone Paper`（中文名「纸研」），当前版本 1.0.1，最低要求 Obsidian 1.5.0。
 
+v1.0.1 已装配到验收库 spark-cache 的 `.obsidian/plugins/inkstone/`，重启 Obsidian 后生效。
+
 ## 功能概览
 
 **Kami 排版层**（阅读模式完整生效）
