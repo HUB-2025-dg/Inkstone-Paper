@@ -1,16 +1,27 @@
 import {
 	App,
+	Notice,
 	Plugin,
 	PluginSettingTab,
 	Setting,
 	requireApiVersion,
 	type SettingDefinitionItem,
 } from 'obsidian';
+import {
+	LANGUAGE_SETTINGS,
+	createTranslator,
+	isLanguageSetting,
+	resolveLanguage,
+	type LanguageSetting,
+	type Translator,
+} from './i18n';
 
 /**
  * Inkstone 设置（PLAN §9 全量）。
- * 结构：全局开关 / 暗色门控 / 纸张样式 / 字体族覆盖 / 字号缩放 / 栏宽 /
+ * 结构：界面语言 / 全局开关 / 暗色门控 / 纸张样式 / 字体族覆盖 / 字号缩放 / 栏宽 /
  * 效果总开关 + 四项独立开关（滚动渐显、交互呼吸、聚焦阅读、打字机）/ 打字机速度。
+ * 文案一律经 i18n.ts 的 t(key) 取词（PLAN §14 C）：本文件只持有语言键值，
+ * data.json 不落任何译文；设置页面每次渲染按当前语言重新解析文案。
  * frontmatter 覆盖语义见 scope.ts：`inkstone` 与 `inkstone-paper` 均可单篇双向覆盖。
  */
 
@@ -20,6 +31,8 @@ export type PaperStyle = 'warm' | 'white';
 export type FontOverride = 'default' | 'sans' | 'obsidian';
 
 export interface InkstoneSettings {
+	/** 界面语言：auto 跟随系统（navigator.language），zh/en 手动指定（PLAN §14 C）。 */
+	language: LanguageSetting;
 	/** 全局总开关：关闭时插件不做任何排版干预（frontmatter `inkstone: true` 仍可单篇开启）。 */
 	enabled: boolean;
 	/** 暗色下是否生效：关闭后应用处于暗色主题时插件整体不生效（PLAN §9）。 */
@@ -28,7 +41,7 @@ export interface InkstoneSettings {
 	paperStyle: PaperStyle;
 	/** 字体族覆盖（PLAN §9）。 */
 	fontOverride: FontOverride;
-	/** 字号缩放：整条字号阶梯的百分比（100 = Kami 默认），读入时夹取至合法区间。 */
+	/** 字号缩放：Obsidian 字号的百分比倍率（100 = 完全跟随 Obsidian），读入时夹取至合法区间。 */
 	fontScale: number;
 	/** 栏宽（px），读入时夹取至合法区间（PLAN §7 默认 700px）。 */
 	lineWidth: number;
@@ -51,7 +64,7 @@ export const TYPEWRITER_SPEED_MIN = 10;
 export const TYPEWRITER_SPEED_MAX = 120;
 export const TYPEWRITER_SPEED_DEFAULT = 45;
 
-/** 字号缩放范围（百分比，步进 5；100 = Kami 默认阶梯）。 */
+/** 字号缩放范围（百分比，步进 5；100 = 完全跟随 Obsidian 字号）。 */
 export const FONT_SCALE_MIN = 85;
 export const FONT_SCALE_MAX = 125;
 export const FONT_SCALE_STEP = 5;
@@ -66,55 +79,29 @@ export const LINE_WIDTH_DEFAULT = 700;
 const PAPER_STYLES: readonly PaperStyle[] = ['warm', 'white'];
 const FONT_OVERRIDES: readonly FontOverride[] = ['default', 'sans', 'obsidian'];
 
-/** 下拉选项（display() 与 getSettingDefinitions() 共用，两路文案不漂移）。 */
-const PAPER_OPTIONS: Record<string, string> = { warm: 'Warm paper', white: 'White paper' };
-const FONT_OPTIONS: Record<string, string> = {
-	default: 'Kami serif',
-	sans: 'Sans-serif',
-	obsidian: 'Follow Obsidian',
-};
+/** 下拉选项的显示名每次渲染按当前语言解析（值仍是稳定键，见 data.json 只存键值）。 */
+function paperOptions(t: Translator): Record<string, string> {
+	return { warm: t('option.paperWarm'), white: t('option.paperWhite') };
+}
 
-/** 设置项名称单一来源：display()（<1.13 回退路径）与 getSettingDefinitions()
- *  （1.13+ 声明式路径）共用，保证渲染与设置搜索的文案一致（复审第 1 轮 §7）。 */
-const LABEL = {
-	enable: 'Enable Inkstone',
-	darkMode: 'Active in dark mode',
-	paperHeading: 'Paper',
-	paperStyle: 'Paper style',
-	typographyHeading: 'Typography',
-	fontFamily: 'Font family',
-	fontScale: 'Font size scale',
-	lineWidth: 'Column width',
-	effectsHeading: 'Effects',
-	effects: 'Enable effects',
-	reveal: 'Scrolling reveal',
-	breath: 'Interactive breathing',
-	focus: 'Focus reading',
-	typewriter: 'Typewriter',
-	typewriterSpeed: 'Typewriter speed',
-} as const;
+function fontOptions(t: Translator): Record<string, string> {
+	return {
+		default: t('option.fontDefault'),
+		sans: t('option.fontSans'),
+		obsidian: t('option.fontObsidian'),
+	};
+}
 
-/** 设置项描述单一来源（两路共用）。 */
-const DESC = {
-	enable: 'Apply the Kami typesetting layer and effects to notes. A note can opt out with the frontmatter inkstone: false, or opt in with inkstone: true.',
-	darkMode:
-		'Keep Inkstone active while the app uses a dark theme. Turn off to leave dark themes untouched.',
-	paperStyle:
-		'Warm paper is the Kami default; white paper is the print variant. Frontmatter inkstone-paper: true or false overrides this per note (reading view).',
-	fontFamily:
-		'Kami serif is the bundled default. Sans-serif switches to a plain sans stack; follow Obsidian uses the font chosen in the appearance settings.',
-	fontScale: 'Scale the whole type ladder up or down. The Kami default is 100.',
-	lineWidth: 'Maximum text column width in pixels. The Kami default is 700.',
-	effects: 'Master switch for all micro-motion. Turn off to keep the static typesetting.',
-	reveal: 'Fade blocks in with an 8px rise as they enter the viewport, once per block (reading view).',
-	breath: 'Hover feedback on cards and links: a 1px lift with a deepening border, and underline growth.',
-	focus: 'Dim paragraphs outside the middle band of the viewport while reading (reading view).',
-	typewriter:
-		'Allow the typewriter command to play on the active reading view. The command has no default hotkey.',
-	typewriterSpeed: 'Characters revealed per second when the typewriter command plays.',
-} as const;
+function languageOptions(t: Translator): Record<string, string> {
+	return {
+		auto: t('option.languageAuto'),
+		zh: t('option.languageZh'),
+		en: t('option.languageEn'),
+	};
+}
 
 export const DEFAULT_SETTINGS: InkstoneSettings = {
+	language: 'auto',
 	enabled: true,
 	darkModeEnabled: true,
 	paperStyle: 'warm',
@@ -164,6 +151,7 @@ export async function loadSettings(plugin: SettingsHost): Promise<void> {
 	const stored = (await plugin.loadData()) as Partial<InkstoneSettings> | null;
 	const merged = Object.assign({}, DEFAULT_SETTINGS, stored ?? {});
 	plugin.inkstoneSettings = {
+		language: pickEnum(merged.language, LANGUAGE_SETTINGS, 'auto'),
 		enabled: merged.enabled === true,
 		darkModeEnabled: merged.darkModeEnabled !== false,
 		paperStyle: pickEnum(merged.paperStyle, PAPER_STYLES, 'warm'),
@@ -199,8 +187,9 @@ function isFontOverride(value: string): value is FontOverride {
  * 双路径渲染（复审第 1 轮 §7）：
  * - getSettingDefinitions()：Obsidian 1.13+ 声明式 API，设置进入全局搜索；
  * - display()：<1.13 的命令式回退（manifest minAppVersion 1.5.0）。
- * 两条路径的文案与控件参数一律取 LABEL/DESC/选项常量；eslint-plugin-obsidianmd
- * 对 minAppVersion < 1.13 同时要求 display() 存在（require-display）。
+ * 两条路径的文案一律经 t(key) 从 i18n.ts 取词（PLAN §14 C），不各写一份。
+ * eslint-plugin-obsidianmd 对 minAppVersion < 1.13 同时要求 display() 存在
+ * （require-display）。
  */
 export class InkstoneSettingTab extends PluginSettingTab {
 	private readonly host: SettingsHost & SettingsController;
@@ -210,40 +199,69 @@ export class InkstoneSettingTab extends PluginSettingTab {
 		this.host = host;
 	}
 
+	/** 当前语言的取词器：语言在渲染时解析，切换语言即重建面板（PLAN §14 C）。 */
+	private translator(): Translator {
+		return createTranslator(resolveLanguage(this.host.inkstoneSettings.language));
+	}
+
 	/** 声明式设置定义（1.13+ 渲染与设置搜索索引的唯一来源）。 */
 	override getSettingDefinitions(): SettingDefinitionItem[] {
+		const t = this.translator();
 		const settings = this.host.inkstoneSettings;
 		const effectsOff = (): boolean => !settings.effectsEnabled;
 		return [
-			{ name: LABEL.enable, desc: DESC.enable, control: { type: 'toggle', key: 'enabled' } },
 			{
-				name: LABEL.darkMode,
-				desc: DESC.darkMode,
+				type: 'group',
+				heading: t('label.interfaceHeading'),
+				items: [
+					{
+						name: t('label.language'),
+						desc: t('desc.language'),
+						control: {
+							type: 'dropdown',
+							key: 'language',
+							options: languageOptions(t),
+						},
+					},
+				],
+			},
+			{ name: t('label.enable'), desc: t('desc.enable'), control: { type: 'toggle', key: 'enabled' } },
+			{
+				name: t('label.darkMode'),
+				desc: t('desc.darkMode'),
 				control: { type: 'toggle', key: 'darkModeEnabled' },
 			},
 			{
 				type: 'group',
-				heading: LABEL.paperHeading,
+				heading: t('label.paperHeading'),
 				items: [
 					{
-						name: LABEL.paperStyle,
-						desc: DESC.paperStyle,
-						control: { type: 'dropdown', key: 'paperStyle', options: PAPER_OPTIONS },
+						name: t('label.paperStyle'),
+						desc: t('desc.paperStyle'),
+						control: {
+							type: 'dropdown',
+							key: 'paperStyle',
+							options: paperOptions(t),
+						},
 					},
 				],
 			},
 			{
 				type: 'group',
-				heading: LABEL.typographyHeading,
+				heading: t('label.typographyHeading'),
 				items: [
 					{
-						name: LABEL.fontFamily,
-						desc: DESC.fontFamily,
-						control: { type: 'dropdown', key: 'fontOverride', options: FONT_OPTIONS },
+						name: t('label.fontFamily'),
+						desc: t('desc.fontFamily'),
+						control: {
+							type: 'dropdown',
+							key: 'fontOverride',
+							options: fontOptions(t),
+						},
 					},
 					{
-						name: LABEL.fontScale,
-						desc: DESC.fontScale,
+						name: t('label.fontScale'),
+						desc: t('desc.fontScale'),
 						control: {
 							type: 'slider',
 							key: 'fontScale',
@@ -253,8 +271,8 @@ export class InkstoneSettingTab extends PluginSettingTab {
 						},
 					},
 					{
-						name: LABEL.lineWidth,
-						desc: DESC.lineWidth,
+						name: t('label.lineWidth'),
+						desc: t('desc.lineWidth'),
 						control: {
 							type: 'slider',
 							key: 'lineWidth',
@@ -267,36 +285,36 @@ export class InkstoneSettingTab extends PluginSettingTab {
 			},
 			{
 				type: 'group',
-				heading: LABEL.effectsHeading,
+				heading: t('label.effectsHeading'),
 				items: [
 					{
-						name: LABEL.effects,
-						desc: DESC.effects,
+						name: t('label.effects'),
+						desc: t('desc.effects'),
 						control: { type: 'toggle', key: 'effectsEnabled' },
 					},
 					{
-						name: LABEL.reveal,
-						desc: DESC.reveal,
+						name: t('label.reveal'),
+						desc: t('desc.reveal'),
 						control: { type: 'toggle', key: 'revealEnabled', disabled: effectsOff },
 					},
 					{
-						name: LABEL.breath,
-						desc: DESC.breath,
+						name: t('label.breath'),
+						desc: t('desc.breath'),
 						control: { type: 'toggle', key: 'breathEnabled', disabled: effectsOff },
 					},
 					{
-						name: LABEL.focus,
-						desc: DESC.focus,
+						name: t('label.focus'),
+						desc: t('desc.focus'),
 						control: { type: 'toggle', key: 'focusEnabled', disabled: effectsOff },
 					},
 					{
-						name: LABEL.typewriter,
-						desc: DESC.typewriter,
+						name: t('label.typewriter'),
+						desc: t('desc.typewriter'),
 						control: { type: 'toggle', key: 'typewriterEnabled', disabled: effectsOff },
 					},
 					{
-						name: LABEL.typewriterSpeed,
-						desc: DESC.typewriterSpeed,
+						name: t('label.typewriterSpeed'),
+						desc: t('desc.typewriterSpeed'),
 						control: {
 							type: 'slider',
 							key: 'typewriterSpeed',
@@ -317,9 +335,14 @@ export class InkstoneSettingTab extends PluginSettingTab {
 	}
 
 	/** 声明式控件写值（1.13+）：归一口径与 loadSettings 一致，写后即时生效；
-	 *  effectsEnabled 翻转影响其余开关的 disabled 判定，refreshDomState 就地重估。 */
+	 *  effectsEnabled 翻转影响其余开关的 disabled 判定，refreshDomState 就地重估。
+	 *  language 走独立的切换路径：落键值、重建面板、提示命令名随重启更新。 */
 	override setControlValue(key: string, value: unknown): void {
 		const settings = this.host.inkstoneSettings;
+		if (key === 'language') {
+			if (isLanguageSetting(value)) this.changeLanguage(value);
+			return;
+		}
 		switch (key) {
 			case 'enabled':
 				settings.enabled = value === true;
@@ -366,16 +389,62 @@ export class InkstoneSettingTab extends PluginSettingTab {
 		if (requireApiVersion('1.13.0')) this.refreshDomState();
 	}
 
+	/**
+	 * 语言切换（1.13+ 与 <1.13 共用）：只改语言键值并落盘；解析后的语言变了才
+	 * 立即重建设置页，并以新语言提示命令名随重启更新。命令不在此时重复注册
+	 * （PLAN §14 C）。
+	 */
+	private changeLanguage(next: LanguageSetting): void {
+		const settings = this.host.inkstoneSettings;
+		const previous = resolveLanguage(settings.language);
+		settings.language = next;
+		this.host.applySettings();
+		const resolved = resolveLanguage(next);
+		if (resolved === previous) return;
+		this.rebuild();
+		new Notice(createTranslator(resolved)('notice.languageChanged'));
+	}
+
+	/** 1.13+ 用声明式 update()（重读 definitions，搜索索引同步刷新）；
+	 *  <1.13 重绘命令式面板。 */
+	private rebuild(): void {
+		if (requireApiVersion('1.13.0')) this.update();
+		else this.renderSettingsPage();
+	}
+
+	/** <1.13 命令式回退入口（display 自 1.13 起废弃，仅在旧版被框架调用）。 */
 	override display(): void {
+		this.renderSettingsPage();
+	}
+
+	/** 命令式面板的实际渲染体：语言切换时也直接调用它重建，避免触发
+	 *  对弃用 display() 的调用。 */
+	private renderSettingsPage(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+		const t = this.translator();
 		const settings = this.host.inkstoneSettings;
 		const apply = (): void => this.host.applySettings();
 
+		// —— 界面（PLAN §14 C：界面语言）——
+		new Setting(containerEl).setName(t('label.interfaceHeading')).setHeading();
+
+		new Setting(containerEl)
+			.setName(t('label.language'))
+			.setDesc(t('desc.language'))
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOptions(languageOptions(t))
+					.setValue(settings.language)
+					.onChange((value) => {
+						if (isLanguageSetting(value)) this.changeLanguage(value);
+					}),
+			);
+
 		// —— 全局（PLAN §9：全局开关、暗色下是否生效）——
 		new Setting(containerEl)
-			.setName(LABEL.enable)
-			.setDesc(DESC.enable)
+			.setName(t('label.enable'))
+			.setDesc(t('desc.enable'))
 			.addToggle((toggle) =>
 				toggle.setValue(settings.enabled).onChange((value) => {
 					settings.enabled = value;
@@ -384,8 +453,8 @@ export class InkstoneSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName(LABEL.darkMode)
-			.setDesc(DESC.darkMode)
+			.setName(t('label.darkMode'))
+			.setDesc(t('desc.darkMode'))
 			.addToggle((toggle) =>
 				toggle.setValue(settings.darkModeEnabled).onChange((value) => {
 					settings.darkModeEnabled = value;
@@ -394,14 +463,14 @@ export class InkstoneSettingTab extends PluginSettingTab {
 			);
 
 		// —— 纸张（PLAN §9：纸张样式，暖纸默认 / 白纸打印变体）——
-		new Setting(containerEl).setName(LABEL.paperHeading).setHeading();
+		new Setting(containerEl).setName(t('label.paperHeading')).setHeading();
 
 		new Setting(containerEl)
-			.setName(LABEL.paperStyle)
-			.setDesc(DESC.paperStyle)
+			.setName(t('label.paperStyle'))
+			.setDesc(t('desc.paperStyle'))
 			.addDropdown((dropdown) =>
 				dropdown
-					.addOptions(PAPER_OPTIONS)
+					.addOptions(paperOptions(t))
 					.setValue(settings.paperStyle)
 					.onChange((value) => {
 						if (isPaperStyle(value)) {
@@ -412,14 +481,14 @@ export class InkstoneSettingTab extends PluginSettingTab {
 			);
 
 		// —— 排版（PLAN §9：字体族覆盖、字号缩放、栏宽）——
-		new Setting(containerEl).setName(LABEL.typographyHeading).setHeading();
+		new Setting(containerEl).setName(t('label.typographyHeading')).setHeading();
 
 		new Setting(containerEl)
-			.setName(LABEL.fontFamily)
-			.setDesc(DESC.fontFamily)
+			.setName(t('label.fontFamily'))
+			.setDesc(t('desc.fontFamily'))
 			.addDropdown((dropdown) =>
 				dropdown
-					.addOptions(FONT_OPTIONS)
+					.addOptions(fontOptions(t))
 					.setValue(settings.fontOverride)
 					.onChange((value) => {
 						if (isFontOverride(value)) {
@@ -430,8 +499,8 @@ export class InkstoneSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName(LABEL.fontScale)
-			.setDesc(DESC.fontScale)
+			.setName(t('label.fontScale'))
+			.setDesc(t('desc.fontScale'))
 			.addSlider((slider) =>
 				slider
 					.setLimits(FONT_SCALE_MIN, FONT_SCALE_MAX, FONT_SCALE_STEP)
@@ -443,8 +512,8 @@ export class InkstoneSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName(LABEL.lineWidth)
-			.setDesc(DESC.lineWidth)
+			.setName(t('label.lineWidth'))
+			.setDesc(t('desc.lineWidth'))
 			.addSlider((slider) =>
 				slider
 					.setLimits(LINE_WIDTH_MIN, LINE_WIDTH_MAX, LINE_WIDTH_STEP)
@@ -456,7 +525,7 @@ export class InkstoneSettingTab extends PluginSettingTab {
 			);
 
 		// —— 动效（PLAN §9：效果总开关 + 四项独立开关 + 打字机速度）——
-		new Setting(containerEl).setName(LABEL.effectsHeading).setHeading();
+		new Setting(containerEl).setName(t('label.effectsHeading')).setHeading();
 
 		// 效果总开关关闭时置灰四项独立开关（视觉联动，逻辑门控在消费端）
 		const effectSettings: Setting[] = [];
@@ -465,8 +534,8 @@ export class InkstoneSettingTab extends PluginSettingTab {
 		};
 
 		new Setting(containerEl)
-			.setName(LABEL.effects)
-			.setDesc(DESC.effects)
+			.setName(t('label.effects'))
+			.setDesc(t('desc.effects'))
 			.addToggle((toggle) =>
 				toggle.setValue(settings.effectsEnabled).onChange((value) => {
 					settings.effectsEnabled = value;
@@ -476,8 +545,8 @@ export class InkstoneSettingTab extends PluginSettingTab {
 			);
 
 		const revealSetting = new Setting(containerEl)
-			.setName(LABEL.reveal)
-			.setDesc(DESC.reveal)
+			.setName(t('label.reveal'))
+			.setDesc(t('desc.reveal'))
 			.addToggle((toggle) =>
 				toggle.setValue(settings.revealEnabled).onChange((value) => {
 					settings.revealEnabled = value;
@@ -486,8 +555,8 @@ export class InkstoneSettingTab extends PluginSettingTab {
 			);
 
 		const breathSetting = new Setting(containerEl)
-			.setName(LABEL.breath)
-			.setDesc(DESC.breath)
+			.setName(t('label.breath'))
+			.setDesc(t('desc.breath'))
 			.addToggle((toggle) =>
 				toggle.setValue(settings.breathEnabled).onChange((value) => {
 					settings.breathEnabled = value;
@@ -496,8 +565,8 @@ export class InkstoneSettingTab extends PluginSettingTab {
 			);
 
 		const focusSetting = new Setting(containerEl)
-			.setName(LABEL.focus)
-			.setDesc(DESC.focus)
+			.setName(t('label.focus'))
+			.setDesc(t('desc.focus'))
 			.addToggle((toggle) =>
 				toggle.setValue(settings.focusEnabled).onChange((value) => {
 					settings.focusEnabled = value;
@@ -506,8 +575,8 @@ export class InkstoneSettingTab extends PluginSettingTab {
 			);
 
 		const typewriterSetting = new Setting(containerEl)
-			.setName(LABEL.typewriter)
-			.setDesc(DESC.typewriter)
+			.setName(t('label.typewriter'))
+			.setDesc(t('desc.typewriter'))
 			.addToggle((toggle) =>
 				toggle.setValue(settings.typewriterEnabled).onChange((value) => {
 					settings.typewriterEnabled = value;
@@ -516,8 +585,8 @@ export class InkstoneSettingTab extends PluginSettingTab {
 			);
 
 		const speedSetting = new Setting(containerEl)
-			.setName(LABEL.typewriterSpeed)
-			.setDesc(DESC.typewriterSpeed)
+			.setName(t('label.typewriterSpeed'))
+			.setDesc(t('desc.typewriterSpeed'))
 			.addSlider((slider) =>
 				slider
 					.setLimits(TYPEWRITER_SPEED_MIN, TYPEWRITER_SPEED_MAX, 1)

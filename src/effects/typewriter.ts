@@ -1,4 +1,5 @@
 import { MarkdownView } from 'obsidian';
+import { createTranslator, resolveLanguage } from '../i18n';
 import { SCOPE_ON, prefersReducedMotion, type ScopeHost } from '../scope';
 
 /**
@@ -8,6 +9,8 @@ import { SCOPE_ON, prefersReducedMotion, type ScopeHost } from '../scope';
  * 结束/跳过/卸载时解包恢复原文本节点（零残留）。
  * 受效果总开关 + typewriterEnabled 独立开关门控，关闭时命令不可用；
  * reduced-motion 时不启动（退化静态，命令在命令面板中亦不可见）。
+ * 命令名经 i18n.ts 按插件加载时的语言注册（PLAN §14 C）；语言切换不重注册，
+ * 由设置页 Notice 提示重启后更新。
  */
 
 const TW_HIDE_CLASS = 'inkstone-tw-hide';
@@ -150,9 +153,10 @@ function endSession(): void {
 }
 
 export function registerTypewriterCommand(plugin: ScopeHost): void {
+	const t = createTranslator(resolveLanguage(plugin.inkstoneSettings.language));
 	plugin.addCommand({
 		id: 'play-typewriter-effect',
-		name: 'Play typewriter effect',
+		name: t('command.playTypewriter'),
 		checkCallback: (checking: boolean) => {
 			// 播放中不重复触发；效果总开关/独立开关关闭或 reduced-motion 时命令不可见
 			if (session || prefersReducedMotion()) return false;
