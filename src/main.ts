@@ -135,18 +135,27 @@ export default class InkstonePlugin extends Plugin implements SettingsController
 	 * 观察器在插件重新启用时立即附着；冷启动时布局尚未恢复、无 markdown 叶子，
 	 * 这次重渲染是空操作，真正补类由 onLayoutReady 的同步完成。切标签与
 	 * 布局变化不会重渲染（签名未变），避免重复开销。
+	 * 动效卸载看 `anyInScope` 而非全局开关：全局关闭 + 单篇 `inkstone: true`
+	 * 时阅读排版仍生效，渐显/聚焦必须保留（复审第 2 轮 §1）。frontmatter 让
+	 * 某叶子 ON/OFF 翻转时（scopeChangedViews），只重渲染这些叶子，让
+	 * post-processor 按新作用域重挂或清理动效；签名不含 frontmatter，光靠它
+	 * 检测不到。
 	 */
 	private refreshRuntime(forceRerender = false): void {
 		applyTypographyOverrides(this);
-		syncScopeClasses(this);
-		const off = !this.inkstoneSettings.enabled;
-		const { effectsEnabled, revealEnabled, focusEnabled, typewriterEnabled } = this.inkstoneSettings;
-		if (off || !effectsEnabled || !revealEnabled) unloadRevealEffect(this);
-		if (off || !effectsEnabled || !focusEnabled) unloadFocusEffect(this);
-		if (off || !effectsEnabled || !typewriterEnabled) unloadTypewriterEffect();
+		const { anyInScope, scopeChangedViews } = syncScopeClasses(this);
+		const { effectsEnabled, revealEnabled, focusEnabled, typewriterEnabled } =
+			this.inkstoneSettings;
+		const effectsAvailable = anyInScope && effectsEnabled;
+		if (!effectsAvailable || !revealEnabled) unloadRevealEffect(this);
+		if (!effectsAvailable || !focusEnabled) unloadFocusEffect(this);
+		if (!effectsAvailable || !typewriterEnabled) unloadTypewriterEffect();
 		const signature = RERENDER_KEYS.map((key) => String(this.inkstoneSettings[key])).join('|');
 		if (forceRerender || this.lastScopeSignature !== signature) {
 			this.rerenderReadingViews();
+		} else if (scopeChangedViews.length > 0) {
+			// 签名未变、仅 frontmatter 翻转：只重渲染翻转的叶子，避免波及旁观分屏
+			this.rerenderViews(scopeChangedViews);
 		}
 		this.lastScopeSignature = signature;
 	}
@@ -187,6 +196,15 @@ export default class InkstonePlugin extends Plugin implements SettingsController
 			if (view instanceof MarkdownView && view.getMode() === 'preview') {
 				view.previewMode.rerender(true);
 			}
+		}
+	}
+
+	/** 只重渲染作用域翻转的叶子（frontmatter 变化路径，避免波及旁观分屏）。
+	 *  不按当前模式过滤：叶子在 Live Preview 时也要重建背后的阅读 DOM，
+	 *  否则切回阅读模式时 post-processor 不会对已渲染 section 重跑。 */
+	private rerenderViews(views: MarkdownView[]): void {
+		for (const view of views) {
+			view.previewMode.rerender(true);
 		}
 	}
 }

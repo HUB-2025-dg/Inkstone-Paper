@@ -17,3 +17,7 @@
 
 - 正面：id 与名称在社区目录中独立可辨，无混淆、无冒认官方之嫌；「纸研」的中文语义与项目气质自洽；为双语 README 的定位陈述留出空间。
 - 负面：名称与 kami 的关联需靠文档持续解释；提交审核时需确认 `inkstone` id 在社区目录未被占用，若被占用需另议名字并回改 manifest。
+
+## 修订（2026-11-19，复审第 2 轮）
+
+Obsidian 官方 Manifest 文档要求插件显示名使用 Basic Latin 字符（`name` 字段：Prefer English names and use Basic Latin characters only）。因此社区目录显示名定为 ASCII 的 **Inkstone Paper**：保留 Inkstone 品牌与「纸研」的纸感语义，插件 id `inkstone` 不变，中文名「纸研」保留在 README 与项目文档中。已核对社区目录，无同名插件或主题（现有 `Inkstone Annotations`、`InkStone Preview`、`Inkstone PDF` 与主题 `Inkstone` 均不冲突）。

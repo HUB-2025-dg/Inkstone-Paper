@@ -1,11 +1,11 @@
-# Inkstone 纸研 — 实施蓝图
+# Inkstone Paper（纸研）— 实施蓝图
 
 > 本文件是唯一蓝图。每次继续开发：先完整读它 → 做未完成步骤 → 勾掉并更新状态。
 > 设计系统出处：tw93/kami（MIT，本地 checkout `D:\Kami`）。本插件为其非官方衍生。
 
 ## 0. 一句话
 
-Inkstone 纸研：自带 Kami 排版层与克制动效的 Obsidian 插件，让笔记以印刷级的纸感排版呈现。高级感来自字距、留白与油墨蓝，动效只做信息的服务。
+Inkstone Paper（纸研）：自带 Kami 排版层与克制动效的 Obsidian 插件，让笔记以印刷级的纸感排版呈现。高级感来自字距、留白与油墨蓝，动效只做信息的服务。
 
 ## 1. 背景与定位
 
@@ -25,7 +25,7 @@ Inkstone 纸研：自带 Kami 排版层与克制动效的 Obsidian 插件，让�
 | 6 | 字体 | 打包 OFL 字体：霞鹜文楷屏幕版 + JetBrains Mono（ADR-0002） |
 | 7 | 动效 | 滚动渐显、交互呼吸、聚焦阅读、打字机（开关+速度可调） |
 | 8 | 模式 | 阅读模式完整；Live Preview 只生效排版令牌，无动效（ADR-0003） |
-| 9 | 命名 | Inkstone 纸研，id `inkstone`（ADR-0004） |
+| 9 | 命名 | Inkstone Paper（纸研），id `inkstone`（ADR-0004） |
 | 10 | 节奏 | v1.0 一次做完；终点 = lint 0 错 + 构建通过 + 验收清单全过 + README/manifest 齐备 |
 | 11 | 验收 | 真实 vault `D:\13757\Documents\学习\spark-cache` |
 | 12 | 默认项 | 明暗双模式（Kami deep-dark 令牌）；v1 不动工作区外壳 |
@@ -154,7 +154,7 @@ D:\Obsidian-Kami\
 - [ ] 长笔记（300+ 段）滚动不卡；控制台无报错（默认只允许 error 级）
 - [x] README 双语、manifest 完整（author 已由占位 "13757" 改为 git 署名 "HUB"，发布前用户可自行改定）
 - [ ] PDF 导出复核：导出走 print 媒体查询，渐显/打字机隐藏态强制呈现，无半透明空白块（复审第 1 轮 §4）
-- [ ] 发布前向审核确认 manifest name 用非 ASCII 品牌名 "Inkstone 纸研"（ADR-0004；社区 10555 个插件 name 均为 ASCII，复审第 1 轮 §12）
+- [x] manifest name 使用 ASCII 的 "Inkstone Paper"（Obsidian Manifest 规范要求 Basic Latin only；已确认社区目录无同名插件/主题；中文名「纸研」保留在 README 与文档，复审第 2 轮 §2）
 
 ## 12. 文档协议
 
@@ -194,7 +194,7 @@ D:\Obsidian-Kami\
 
 ### v1.0.1 验收清单
 
-（第 1 项已于复审第 1 轮修复时完成：lint/build 全绿，产物装配 spark-cache 验收库且 md5 逐文件一致；其余各项为人工目检，仍需实测步骤勾选。）
+（第 1 项已于复审第 1 轮修复时完成，复审第 2 轮复验：lint/build 全绿。装配目录 `D:\13757\Documents\学习\spark-cache\.obsidian\plugins\inkstone`，main.js / styles.css / manifest.json 与仓库 md5 逐文件一致。其余各项为人工目检，需在 Obsidian 中重载插件或重启后勾选。）
 
 - [x] `npm run lint` + `npm run build` 全绿；产物装配 spark-cache 验收库（md5 逐文件比对）
 - [ ] 2026-11-15 / 2026-11-16 阅读视图均生效；阅读与编辑模式字号一致；切标签、重开 Obsidian 立即正确

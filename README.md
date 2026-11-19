@@ -1,8 +1,8 @@
-# Inkstone 纸研
+# Inkstone Paper（纸研）
 
 自带 Kami 排版层与克制动效的 Obsidian 插件：把 tw93/kami 设计系统的纸感排版移植进阅读视图，暖纸底、油墨蓝作为唯一强调色、衬线承载层级，再叠一层只服务信息的微动效。排版层由插件自持，不依赖任何主题。
 
-插件 id `inkstone`，当前版本 1.0.1，最低要求 Obsidian 1.5.0。
+插件 id `inkstone`，社区目录显示名 `Inkstone Paper`（中文名「纸研」），当前版本 1.0.1，最低要求 Obsidian 1.5.0。
 
 ## 功能概览
 
@@ -47,7 +47,7 @@
    └─ fonts/          （约 25 MB；缺失时不影响启用，但会失去 Kami 字体）
    ```
 
-3. 重启 Obsidian，设置 → 第三方插件 → 启用 Inkstone 纸研。
+3. 重启 Obsidian，设置 → 第三方插件 → 启用 Inkstone Paper。
 
 ### 通过 BRAT
 
@@ -143,7 +143,7 @@ inkstone-paper: false   # 本篇用暖纸，覆盖全局的白纸设置；写 tr
 
 ## English (short)
 
-**Inkstone** is an Obsidian plugin that bundles a Kami typesetting layer with restrained micro-motion. It ports the tw93/kami design system (warm paper, single ink-blue accent, serif hierarchy) into the reading view, plus four subtle effects. Works without any theme; complements the Kami Reader theme.
+**Inkstone Paper** (Chinese: 纸研) is an Obsidian plugin that bundles a Kami typesetting layer with restrained micro-motion. It ports the tw93/kami design system (warm paper, single ink-blue accent, serif hierarchy) into the reading view, plus four subtle effects. Works without any theme; complements the Kami Reader theme.
 
 **Features**: full markdown component mapping (headings, tables, callouts, tags, code, images, task lists); light/dark token sets with a white-paper variant; bundled OFL fonts (LXGW WenKai Screen + JetBrains Mono); per-note frontmatter overrides; zero network requests; clean uninstall.
 

@@ -2,9 +2,9 @@
 
 > 依据 PLAN.md §12 文档协议维护：术语变更即时更新本表。只记定义，不写实现细节。
 
-## Inkstone（纸研）
+## Inkstone Paper（纸研）
 
-本项目名。砚，是纸与墨之间的承墨之物；纸研，即在纸上研磨、铺展文墨。对应插件的角色：为 Obsidian 笔记承载纸感排版。插件 id 为 `inkstone`（见 ADR-0004），是 tw93/kami 的非官方衍生，与 Kami Reader 主题互补。
+本项目名。砚，是纸与墨之间的承墨之物；纸研，即在纸上研磨、铺展文墨。对应插件的角色：为 Obsidian 笔记承载纸感排版。插件 id 为 `inkstone`，社区目录显示名为 ASCII 的 `Inkstone Paper`（中文名「纸研」，见 ADR-0004），是 tw93/kami 的非官方衍生，与 Kami Reader 主题互补。
 
 ## Kami（紙）
 

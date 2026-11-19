@@ -163,6 +163,20 @@ export function runWhenAttached(
 }
 
 /**
+ * 单叶子上次解析的生效域（只记 ON/OFF；纸张切换不影响动效，不触发重渲染）。
+ * WeakMap 以视图对象为键：叶子关闭即随 GC 消失，不阻止视图回收。
+ */
+const lastScopeByView = new WeakMap<MarkdownView, boolean>();
+
+/** `syncScopeClasses` 的同步结果，供 main.ts 判定动效卸载与重渲染。 */
+export interface ScopeSyncResult {
+	/** 任一打开的 markdown 叶子解析为生效域（含 frontmatter 单篇开启）。 */
+	anyInScope: boolean;
+	/** 生效域发生 ON/OFF 翻转的叶子：需重渲染以重挂或清理动效。 */
+	scopeChangedViews: MarkdownView[];
+}
+
+/**
  * 按 metadataCache 的 frontmatter 把作用域类直挂到每个打开笔记的阅读视图
  * （PLAN §14 改动项 B）。post-processor 依赖渲染调用时刻的 DOM 归属，而
  * Obsidian 1.15.0 的 section 在 postProcessor 运行时尚未上树（诊断结论），
@@ -177,10 +191,16 @@ export function runWhenAttached(
  *   不叠加类、不摘除应有类（幂等）。
  * 未索引的新文件没有 frontmatter 缓存，按全局设置解析（与无 frontmatter
  * 的笔记一致）；索引完成后下一次同步自然收敛。
+ * 返回 `anyInScope`：动效卸载不能只看全局开关（全局关闭 + 单篇 `inkstone:
+ * true` 时该篇仍应保留渐显/聚焦，复审第 2 轮 §1）；返回 `scopeChangedViews`：
+ * 已渲染叶子的生效域翻转时，动效类与观察器需要重挂或清理，main.ts 据此
+ * 只重渲染这些叶子（签名只覆盖设置，不覆盖 frontmatter）。
  */
-export function syncScopeClasses(plugin: ScopeHost): void {
+export function syncScopeClasses(plugin: ScopeHost): ScopeSyncResult {
 	const settings = plugin.inkstoneSettings;
 	const isDark = isDarkTheme();
+	let anyInScope = false;
+	const scopeChangedViews: MarkdownView[] = [];
 	plugin.app.workspace.iterateAllLeaves((leaf) => {
 		const view = leaf.view;
 		// MarkdownView 非 DOM Node，用 instanceof（同 main.ts 的重渲染路径）
@@ -189,16 +209,21 @@ export function syncScopeClasses(plugin: ScopeHost): void {
 			? plugin.app.metadataCache.getFileCache(view.file)?.frontmatter
 			: undefined;
 		const classes = resolveScopeClasses(frontmatter, settings, isDark);
+		const inScope = classes.includes(SCOPE_ON);
+		anyInScope = anyInScope || inScope;
+		const previous = lastScopeByView.get(view);
+		if (previous !== undefined && previous !== inScope) scopeChangedViews.push(view);
+		lastScopeByView.set(view, inScope);
 		for (const rootEl of collectReadingRoots(view.contentEl)) {
 			applyScopeClassList(rootEl, classes);
 		}
 		// Live Preview 按叶子解析：frontmatter 的 inkstone 覆盖在编辑模式同样生效
 		// （分屏中一篇 inkstone: false 不影响另一篇；全局关闭时 inkstone: true 仍生效）
-		const livePreviewOn = classes.includes(SCOPE_ON);
 		for (const sourceEl of collectSourceViews(view.contentEl)) {
-			sourceEl.classList.toggle(SCOPE_LP, livePreviewOn);
+			sourceEl.classList.toggle(SCOPE_LP, inScope);
 		}
 	});
+	return { anyInScope, scopeChangedViews };
 }
 
 /**
