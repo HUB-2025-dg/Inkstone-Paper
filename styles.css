@@ -363,14 +363,22 @@ body.theme-dark {
 	letter-spacing: 0.5px;
 }
 
-/* callout 重映射（PLAN §7）：背景交还 Obsidian 默认
-   （`rgba(var(--callout-color), 0.1)`，随主题与 callout 类型自动取色），
+/* callout 重映射（PLAN §7）：背景显式取 Obsidian 默认公式
+   （`color-mix(in oklch, var(--callout-color) 10%, transparent)`，随主题与
+   callout 类型自动取色）。不写成"不设背景"的隐式行为：插件样式表在启用时
+   注入一次，且主题/片段可能对 .callout 背景有 (0,2,0) 级覆盖，这里用
+   [data-callout] 提到 (0,3,0) 保证确定性。旧版 Obsidian 的 --callout-color
+   是 RGB 三元组，前置 rgba() 兜底；新版是颜色值，color-mix 覆盖之。
    只保留 Kami 的排版层级：无边框、圆角、内边距、字体与字重。
    quote/cite 例外：Kami .quote 无填充（引用不是提示框）。 */
 .inkstone .callout {
 	border: none;
 	border-radius: 5px;
 	padding: var(--ik-space-md) var(--ik-space-lg);
+}
+.inkstone .callout[data-callout] {
+	background-color: rgba(var(--callout-color), 0.1);
+	background-color: color-mix(in oklch, var(--callout-color) 10%, transparent);
 }
 .inkstone .callout-title {
 	color: var(--ik-near-black);
